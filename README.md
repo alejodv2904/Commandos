@@ -1,9 +1,9 @@
 # Commandos 3 – Hombres de Valor
 
-Juego de estrategia táctica en tiempo real inspirado en *Commandos 2*, hecho con HTML5 Canvas y JavaScript puro (sin dependencias).
+Juego de estrategia táctica en tiempo real inspirado en *Commandos 2*, en 3D isométrico con Three.js y texturas fotográficas reales (CC0).
 
 ## Cómo jugar
-Abre `index.html` en el navegador (o sirve la carpeta con `python3 -m http.server`).
+Abre `index.html` en el navegador (doble clic). Funciona sin servidor: Three.js y las texturas van incluidos en el repositorio.
 
 **Misión:** infiltra a los 4 comandos, destruye el depósito de combustible con la carga del Zapador y reúne a todos en la zona de extracción (arriba a la izquierda). Si cae un comando, la misión fracasa.
 
@@ -35,15 +35,22 @@ Abre `index.html` en el navegador (o sirve la carpeta con `python3 -m http.serve
 - Edificios con interior: al entrar un comando, el tejado se retira y se ve el interior.
 - Siluetas de los comandos cuando quedan tapados por edificios o árboles.
 
-## Apartado visual (todo generado por código, sin imágenes)
-- Terreno pintado píxel a píxel con ruido: hierba, tierra, grava, caminos con rodadas, orillas, río animado y puentes.
-- Edificios con fachadas (entramado, ladrillo, madera, hormigón), ventanas con contraventanas y tejados a cuatro aguas de teja, pizarra o chapa.
-- Camiones, jeep, tiendas, torres de vigilancia, sacos terreros, cajas, bidones y depósito de combustible.
-- Sombras proyectadas, árboles con copa y balanceo, partículas (fuego, humo, restos, fogonazos), bengala de extracción.
-- Interfaz con retratos, mochila de acciones, cursor propio y expediente de misión.
-- Sonido sintetizado con Web Audio (disparos, explosiones, alarma, ambiente).
+## Apartado visual
+- Vista isométrica 3D (cámara ortográfica a ~30°, como Commandos 2) con Three.js.
+- Texturas fotográficas reales de [ambientCG](https://ambientcg.com) (licencia CC0): hierba, tierra, grava, ladrillo, yeso, hormigón, tablones, tejas, pizarra, chapa ondulada, corteza, hojas, tela y metal.
+- Suelo mezclado por shader según el tipo de terreno, con bordes orgánicos y variación a gran escala.
+- Edificios en 3D con dos fachadas visibles, entramado, ventanas, contraventanas, chimeneas y tejados a cuatro aguas; al entrar un comando se ven por dentro.
+- Sol con sombras proyectadas en tiempo real, árboles que se mecen, río con agua animada y puentes.
+- Soldados en 3D animados (andar, agacharse, apuntar, caer), con el uniforme y el tocado de cada uno.
+- Partículas 3D (fuego, humo, restos, fogonazos) con luz de explosión y temblor de cámara.
+- Interfaz con retratos, mochila de acciones, cursor propio y expediente de misión; sonido sintetizado.
+
+## Texturas
+`assets/textures.js` contiene las texturas incrustadas, para que el juego funcione abriendo el archivo directamente.
+Se regeneran con `python3 tools/build_textures.py` (requiere Pillow e Internet).
 
 ## Estructura
 - `js/util.js` utilidades · `js/textures.js` ruido y color · `js/level.js` mapa, LOS, A*
-- `js/entities.js` comandos e IA enemiga · `js/sprites.js` personajes, edificios, objetos, iconos y retratos
-- `js/render.js` terreno, profundidad, partículas · `js/audio.js` sonido · `js/main.js` bucle, entrada, interfaz, guardado
+- `js/entities.js` comandos e IA enemiga · `js/models.js` materiales y modelos 3D · `js/render3d.js` escena, cámara, partículas
+- `js/hudart.js` iconos y retratos · `js/audio.js` sonido · `js/main.js` bucle, entrada, interfaz, guardado
+- `vendor/three.min.js` Three.js r147 (licencia MIT) · `assets/textures.js` texturas CC0

@@ -4,8 +4,7 @@
 const HUD_H = 150;
 
 const G = {
-  canvas: null, ctx: null, mini: null,
-  cam: { x: 0, y: 0, z: 1 },
+  canvas: null, ui: null, mini: null,
   units: [], enemies: [], fx: [], bomb: null,
   time: 0, paused: false, over: null, overlayOpen: true, shake: 0,
   coneMode: 'all', hover: {},
@@ -15,11 +14,11 @@ const G = {
 
   init() {
     this.canvas = document.getElementById('game');
-    this.ctx = this.canvas.getContext('2d');
+    this.ui = document.getElementById('ui');
     this.mini = document.getElementById('mini');
+    Render.init(this.canvas, this.ui);
     this.resize();
     window.addEventListener('resize', () => this.resize());
-    Render.init();
     this.bindInput();
     this.reset();
     this.showIntro();
@@ -32,7 +31,7 @@ const G = {
     requestAnimationFrame(loop);
   },
 
-  resize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; this.clampCam && this.clampCam(); },
+  resize() { Render.resize(window.innerWidth, Math.max(200, window.innerHeight - HUD_H)); },
 
   reset() {
     Level.build();
@@ -48,13 +47,13 @@ const G = {
     this.stats = { alarms: 0, kills: 0, ko: 0 };
     // bengala verde en la extracción
     FX.emitters.push({ rate: 5, fn: () => FX.smoke(6.6 + Math.random() * 0.1, 3.2, 0.1, false, '120,200,110') });
-    this.cam.z = 1;
-    this.centerOn(8, 36);
+    Render.zoom = 1.35;
+    this.centerOn(9, 35);
     this.hudKey = null;
     this.buildHud();
   },
 
-  camCenter() { return { x: (this.cam.x + this.canvas.width / this.cam.z / 2) / TILE, y: (this.cam.y + (this.canvas.height - HUD_H) / this.cam.z / 2) / TILE }; },
+  camCenter() { return { x: Render.target.x, y: Render.target.z }; },
 
   // ---------- reglas ----------
   primary() { return this.units.find(u => u.selected && u.alive) || null; },
@@ -147,54 +146,51 @@ const G = {
   },
 
   cameraControl(dt) {
-    const cam = this.cam, sp = 800 / cam.z;
+    const sp = 900;
     let dx = 0, dy = 0;
     const k = this.keys;
     if (k['a'] || k['arrowleft']) dx -= 1; if (k['d'] || k['arrowright']) dx += 1;
     if (k['w'] || k['arrowup']) dy -= 1; if (k['s'] || k['arrowdown']) dy += 1;
     const m = this.mouse;
     if (m.inside && !this.drag && !this.overlayOpen) {
-      const e = 6;
-      if (m.x < e) dx -= 1; if (m.x > this.canvas.width - e) dx += 1;
-      if (m.y < e) dy -= 1; if (m.y > this.canvas.height - e) dy += 1;
+      const e = 6, w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+      if (m.x < e) dx -= 1; if (m.x > w - e) dx += 1;
+      if (m.y < e) dy -= 1; if (m.y > h - e) dy += 1;
     }
-    cam.x += dx * sp * dt; cam.y += dy * sp * dt;
-    this.clampCam();
+    if (dx || dy) Render.panPixels(dx * sp * dt, dy * sp * dt);
   },
 
-  clampCam() {
-    const cam = this.cam, vw = this.canvas.width / cam.z, vh = (this.canvas.height - HUD_H) / cam.z;
-    const mw = Level.W * TILE, mh = Level.H * TILE;
-    cam.x = vw >= mw ? (mw - vw) / 2 : clamp(cam.x, 0, mw - vw);
-    cam.y = vh >= mh ? (mh - vh) / 2 : clamp(cam.y, -TILE * 2, mh - vh);
-  },
-
-  centerOn(x, y) {
-    this.cam.x = x * TILE - this.canvas.width / this.cam.z / 2;
-    this.cam.y = y * TILE - (this.canvas.height - HUD_H) / this.cam.z / 2;
-    this.clampCam();
-  },
+  centerOn(x, y) { Render.centerOn(x, y); },
 
   // ---------- entrada ----------
-  screenToWorld(sx, sy) { return { x: (sx / this.cam.z + this.cam.x) / TILE, y: (sy / this.cam.z + this.cam.y) / TILE }; },
+  screenToWorld(sx, sy) { return Render.pickGround(sx, sy) || { x: -50, y: -50 }; },
 
-  unitAt(wx, wy) {
-    let best = null, bd = 0.8;
-    for (const u of this.units) { if (!u.alive) continue; const d = dist(wx, wy + (u.crouch ? 0.35 : 0.55), u.x, u.y); if (d < bd) { bd = d; best = u; } }
+  // Selección en pantalla: se proyecta cada soldado y se compara con el puntero
+  unitAt(sx, sy) {
+    let best = null, bd = 26 * Render.zoom;
+    for (const u of this.units) {
+      if (!u.alive) continue;
+      for (const hgt of [0.2, 0.5, 0.8]) { const p = Render.toScreen(u.x, hgt * (u.crouch ? 0.75 : 1), u.y), d = Math.hypot(p.x - sx, p.y - sy); if (d < bd) { bd = d; best = u; } }
+    }
     return best;
   },
-  enemyAt(wx, wy) {
-    let best = null, bd = 0.9;
+  enemyAt(sx, sy) {
+    let best = null, bd = 26 * Render.zoom;
     for (const e of this.enemies) {
       if (e.hidden || e.carried || Render.closedAt(e.x, e.y)) continue;
       const lying = e.state === 'dead' || e.state === 'down';
-      const d = dist(wx, wy + (lying ? 0 : 0.55), e.x, e.y); if (d < bd) { bd = d; best = e; }
+      for (const hgt of lying ? [0.1] : [0.2, 0.5, 0.8]) { const p = Render.toScreen(e.x, hgt, e.y), d = Math.hypot(p.x - sx, p.y - sy); if (d < bd) { bd = d; best = e; } }
     }
+    return best;
+  },
+  enemyNear(wx, wy) {
+    let best = null, bd = 0.9;
+    for (const e of this.enemies) { if (e.hidden || e.carried) continue; const d = dist(wx, wy, e.x, e.y); if (d < bd) { bd = d; best = e; } }
     return best;
   },
 
   updateHover() {
-    const m = this.mouse, h = { unit: this.unitAt(m.wx, m.wy), enemy: this.enemyAt(m.wx, m.wy), valid: false };
+    const m = this.mouse, h = { unit: this.unitAt(m.x, m.y), enemy: this.enemyAt(m.x, m.y), valid: false };
     const p = this.primary();
     if (p && p.action) {
       const e = h.enemy;
@@ -202,7 +198,7 @@ const G = {
         case 'knife': case 'shoot': h.valid = !!e && e.state !== 'dead'; break;
         case 'syringe': h.valid = !!e && e.state !== 'dead' && e.state !== 'down'; break;
         case 'carry': h.valid = p.carry ? Level.isBush(m.wx, m.wy) : !!e && (e.state === 'dead' || e.state === 'down'); break;
-        case 'bomb': h.valid = dist(m.wx, m.wy + 0.5, Level.depot.x, Level.depot.y) < 2.4 && !Level.depot.destroyed; break;
+        case 'bomb': h.valid = dist(m.wx, m.wy, Level.depot.x, Level.depot.y) < 2.6 && !Level.depot.destroyed; break;
         default: h.valid = true;
       }
     }
@@ -218,7 +214,7 @@ const G = {
       const m = this.mouse; m.x = e.clientX; m.y = e.clientY; m.inside = true;
       const w = this.screenToWorld(m.x, m.y); m.wx = w.x; m.wy = w.y;
       if (this.drag) { this.drag.cx = m.x; this.drag.cy = m.y; if (Math.hypot(m.x - this.drag.sx, m.y - this.drag.sy) > 6) this.drag.active = true; }
-      if (this.panDrag) { this.cam.x -= e.movementX / this.cam.z; this.cam.y -= e.movementY / this.cam.z; this.clampCam(); }
+      if (this.panDrag) Render.panPixels(-e.movementX, -e.movementY);
       this.updateHover();
     });
     cv.addEventListener('mousedown', e => {
@@ -237,11 +233,7 @@ const G = {
     });
     cv.addEventListener('wheel', e => {
       e.preventDefault();
-      const before = this.screenToWorld(e.clientX, e.clientY);
-      this.cam.z = clamp(this.cam.z * (e.deltaY < 0 ? 1.1 : 0.9), 0.55, 1.6);
-      const after = this.screenToWorld(e.clientX, e.clientY);
-      this.cam.x += (before.x - after.x) * TILE; this.cam.y += (before.y - after.y) * TILE;
-      this.clampCam();
+      Render.zoomAt(e.deltaY < 0 ? 1.1 : 0.9, e.clientX, e.clientY);
     }, { passive: false });
     const miniJump = e => {
       const r = this.mini.getBoundingClientRect();
@@ -297,8 +289,8 @@ const G = {
     const hit = [];
     for (const u of this.units) {
       if (!u.alive) continue;
-      const sx = (u.x * TILE - this.cam.x) * this.cam.z, sy = ((u.y * TILE - 20) - this.cam.y) * this.cam.z;
-      if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1) hit.push(u);
+      const p = Render.toScreen(u.x, 0.5, u.y);
+      if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1) hit.push(u);
     }
     if (!hit.length && !add) return;
     if (!add) for (const u of this.units) u.selected = false;
@@ -308,10 +300,10 @@ const G = {
 
   leftClick(e) {
     const w = this.screenToWorld(e.clientX, e.clientY);
-    const u = this.unitAt(w.x, w.y);
+    const u = this.unitAt(e.clientX, e.clientY);
     if (u) { if (e.shiftKey) { u.selected = !u.selected; this.updateHud(); } else this.selectOnly(u); return; }
     const sel = this.selected();
-    const en = this.enemyAt(w.x, w.y);
+    const en = this.enemyAt(e.clientX, e.clientY);
     if (en && en.state !== 'dead' && en.state !== 'down' && (!sel.length || this.coneMode === 'inspect')) { en.inspect = !en.inspect; return; }
     if (!sel.length) return;
     const now = performance.now();
@@ -337,12 +329,14 @@ const G = {
     if (!sel.length) return;
     if (!sel.some(u => u.action)) { this.toast('Elige primero una acción de la mochila (teclas 1-3)'); return; }
     let did = false;
-    for (const u of sel) if (u.action && this.giveTask(u, w)) did = true;
+    const en = this.enemyAt(e.clientX, e.clientY);
+    for (const u of sel) if (u.action && this.giveTask(u, w, en)) did = true;
     if (!did) this.toast('Objetivo no válido para esa acción', true); else Sfx.play('order');
   },
 
-  giveTask(u, w) {
-    const a = u.action, en = this.enemyAt(w.x, w.y);
+  giveTask(u, w, en) {
+    const a = u.action;
+    if (en === undefined) en = this.enemyNear(w.x, w.y);
     switch (a) {
       case 'knife': if (!en || en.state === 'dead') return false; u.task = { kind: a, target: en }; break;
       case 'syringe': if (!en || en.state === 'dead' || en.state === 'down') return false; u.task = { kind: a, target: en }; break;
@@ -354,7 +348,7 @@ const G = {
       case 'lure': case 'grenade': u.task = { kind: a, x: w.x, y: w.y }; break;
       case 'bomb': {
         const d = Level.depot;
-        if (dist(w.x, w.y + 0.5, d.x, d.y) > 2.4 && dist(w.x, w.y, d.x, d.y) > 2.4) return false;
+        if (dist(w.x, w.y, d.x, d.y) > 2.6) return false;
         u.task = { kind: 'bomb' }; break;
       }
       default: return false;
