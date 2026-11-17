@@ -12,10 +12,15 @@ const G = {
   keys: {}, mouse: { x: 0, y: 0, wx: 0, wy: 0, inside: false },
   drag: null, lastClick: 0, hudT: 0, toastT: 0, panDrag: null, runId: 0,
 
-  init() {
+  async init() {
     this.canvas = document.getElementById('game');
     this.ui = document.getElementById('ui');
     this.mini = document.getElementById('mini');
+    const ov = document.getElementById('overlay');
+    ov.className = 'show';
+    ov.innerHTML = '<div class="loading"><div class="lt">COMMANDOS 3</div><div class="lbar"><div id="lfill"></div></div><div class="ls">Preparando el teatro de operaciones…</div></div>';
+    await Assets.load(p => { const f = document.getElementById('lfill'); if (f) f.style.width = Math.round(p * 100) + '%'; });
+    Chars.init(Assets.soldier);
     Render.init(this.canvas, this.ui);
     this.resize();
     window.addEventListener('resize', () => this.resize());

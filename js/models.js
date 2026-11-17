@@ -10,9 +10,9 @@ const Tex = {
   get(name, normal) {
     const key = normal ? name + '_n' : name;
     if (key in this.cache) return this.cache[key];
-    const src = window.TEX && window.TEX[key];
-    if (!src) return (this.cache[key] = null);
-    const t = new THREE.TextureLoader().load(src);
+    const img = Assets.img[key];
+    if (!img) return (this.cache[key] = null);
+    const t = new THREE.Texture(img); t.needsUpdate = true;
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     if (!normal) t.encoding = THREE.sRGBEncoding;
     t.anisotropy = 8;
@@ -22,7 +22,7 @@ const Tex = {
   raw(name) {
     const key = name + '_raw';
     if (!this.cache[key]) {
-      const t = new THREE.TextureLoader().load(window.TEX[name]);
+      const t = new THREE.Texture(Assets.img[name]); t.needsUpdate = true;
       t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
       this.cache[key] = t;
     }
@@ -36,55 +36,59 @@ const Tex = {
   }
 };
 
-// [textura, color de tinte, textura de normales, brillo, escala UV (metros por repetición)]
+// [textura, color de tinte, textura de normales, rugosidad, escala UV (m por repetición), metalicidad]
 const MAT_DEFS = {
-  plaster: ['plaster', '#efe4cc', null, 4, 2.2],
-  timberFill: ['plaster', '#f2e2bd', null, 4, 2.2],
-  bricks: ['bricks', '#c4705a', 'bricks', 6, 1.6],
-  concrete: ['concrete', '#b9b5aa', null, 4, 3],
-  wood: ['siding', '#b08a62', 'siding', 6, 2],
-  trim: ['siding', '#5a3c22', null, 6, 1.5],
-  stone: ['concrete', '#8c8578', null, 4, 1.5],
-  tiles: ['tiles', '#ffffff', 'tiles', 10, 1.8],
-  slate: ['slate', '#c4cdd8', 'slate', 18, 1.6],
-  metalRoof: ['metal', '#a8aca4', 'metal', 25, 2.2],
-  floor: ['floor', '#c8a07a', null, 8, 2],
-  door: ['siding', '#8a5a34', null, 6, 1.2],
-  crate: ['crate', '#caa470', null, 4, 0.9],
-  canvas: ['plaster', '#a59b72', null, 2, 1.2],
-  tarp: ['plaster', '#8a8558', null, 2, 1.0],
-  sand: ['plaster', '#cdbb8c', null, 2, 0.6],
-  olive: ['paint', '#5f6a3a', null, 20, 2],
-  oliveDark: ['paint', '#3c4426', null, 20, 2],
-  tank: ['paint', '#a5ab94', null, 30, 2],
-  barrelG: ['paint', '#56623a', null, 25, 1],
-  barrelR: ['paint', '#8a4a28', null, 25, 1],
-  bark: ['bark', '#7a6048', null, 2, 1],
-  post: ['siding', '#6a4a2c', null, 4, 1],
-  leaves: ['leaves', '#5c8a3e', null, 3, 1.4],
-  pine: ['leaves', '#3c6a40', null, 3, 1.2],
-  burnt: [null, '#1c1915', null, 2, 1],
-  glass: [null, '#22303a', null, 90, 1],
-  frame: [null, '#e8e2d0', null, 8, 1],
-  shutter: [null, '#4b6a4a', null, 6, 1],
-  rubber: [null, '#171717', null, 4, 1],
-  wire: [null, '#2a2620', null, 4, 1],
-  red: [null, '#a8321e', null, 10, 1],
-  white: [null, '#e8e4d6', null, 10, 1],
-  lamp: [null, '#fff4c0', null, 10, 1]
+  plaster: ['plaster', '#e2d6bc', 'plaster', 0.92, 2.2],
+  timberFill: ['plaster', '#e6d6b2', 'plaster', 0.92, 2.2],
+  bricks: ['bricks', '#c66d55', 'bricks', 0.9, 1.6],
+  concrete: ['concrete', '#bcb8ad', 'concrete', 0.95, 3],
+  wood: ['siding', '#b48d64', 'siding', 0.85, 2],
+  trim: ['siding', '#5c3e24', 'siding', 0.8, 1.5],
+  stone: ['concrete', '#8f887a', 'concrete', 0.95, 1.5],
+  tiles: ['tiles', '#ffffff', 'tiles', 0.75, 1.8],
+  slate: ['slate', '#9aa5b4', 'slate', 0.6, 1.6],
+  metalRoof: ['metal', '#959a92', 'metal', 0.55, 2.2, 0.35],
+  floor: ['floor', '#c9a27c', 'floor', 0.8, 2],
+  door: ['siding', '#8a5a34', 'siding', 0.8, 1.2],
+  crate: ['crate', '#cfa874', 'crate', 0.85, 0.9],
+  canvas: ['plaster', '#a59b72', null, 0.95, 1.2],
+  tarp: ['plaster', '#8a8558', null, 0.95, 1.0],
+  sand: ['plaster', '#cdbb8c', null, 1.0, 0.6],
+  olive: ['paint', '#5f6a3a', null, 0.6, 2, 0.25],
+  oliveDark: ['paint', '#3c4426', null, 0.6, 2, 0.25],
+  tank: ['paint', '#a5ab94', null, 0.5, 2, 0.35],
+  barrelG: ['paint', '#56623a', null, 0.55, 1, 0.3],
+  barrelR: ['paint', '#8a4a28', null, 0.6, 1, 0.3],
+  bark: ['bark', '#8a7058', 'bark', 0.95, 1],
+  post: ['siding', '#6a4a2c', null, 0.9, 1],
+  leaf: ['leafA', '#8fae6c', null, 0.8, 1],
+  leaf2: ['leafB', '#7d9a5c', null, 0.8, 1],
+  pine: ['pine', '#7f9a78', null, 0.85, 1],
+  burnt: [null, '#1c1915', null, 1.0, 1],
+  glass: [null, '#1c2a33', null, 0.06, 1, 0.1],
+  frame: [null, '#d6cfbc', null, 0.6, 1],
+  shutter: [null, '#4b6a4a', null, 0.7, 1],
+  rubber: [null, '#171717', null, 0.9, 1],
+  wire: [null, '#2a2620', null, 0.6, 1, 0.5],
+  gutter: [null, '#6d6f6a', null, 0.45, 1, 0.6],
+  red: [null, '#a8321e', null, 0.6, 1],
+  white: [null, '#cfcabd', null, 0.7, 1],
+  lamp: [null, '#fff4c0', null, 0.3, 1]
 };
+const NO_AO = new Set(['tiles', 'slate', 'metalRoof', 'leaf', 'leaf2', 'pine', 'glass', 'lamp']);
+const FOLIAGE = new Set(['leaf', 'leaf2', 'pine']);
 
 const Mats = {
   cache: {},
   get(key) {
     if (this.cache[key]) return this.cache[key];
     const d = MAT_DEFS[key];
-    const m = new THREE.MeshPhongMaterial({ color: d[1], shininess: d[3], specular: new THREE.Color(0x222222) });
+    const m = new THREE.MeshStandardMaterial({ color: d[1], roughness: d[3], metalness: d[5] || 0, vertexColors: true, envMapIntensity: 0.9 });
     if (d[0]) m.map = Tex.get(d[0]);
-    if (d[2]) { m.normalMap = Tex.get(d[2], true); m.normalScale = new THREE.Vector2(0.8, 0.8); }
-    if (key === 'glass') m.specular = new THREE.Color(0x8899aa);
-    if (key === 'leaves' || key === 'pine') { m.vertexColors = true; Render.addSway(m); }
-    if (key === 'lamp') m.emissive = new THREE.Color(0x887744);
+    if (d[2]) { m.normalMap = Tex.get(d[2], true); m.normalScale = new THREE.Vector2(1, 1); }
+    if (key === 'glass') m.envMapIntensity = 2.2;
+    if (FOLIAGE.has(key)) { m.alphaTest = 0.45; m.side = THREE.DoubleSide; m.shadowSide = THREE.DoubleSide; Render.addSway(m); }
+    if (key === 'lamp') { m.emissive = new THREE.Color(0xffe0a0); m.emissiveIntensity = 1.5; }
     return (this.cache[key] = m);
   },
   scale(key) { return MAT_DEFS[key] ? MAT_DEFS[key][4] : 1; }
@@ -170,7 +174,16 @@ class Batch {
   build(shadow) {
     const grp = new THREE.Group();
     for (const k in this.parts) {
-      const m = new THREE.Mesh(Geo.merge(this.parts[k]), Mats.get(k));
+      const g = Geo.merge(this.parts[k]);
+      if (!g.attributes.color || !NO_AO.has(k)) {
+        const p = g.attributes.position, c = g.attributes.color ? g.attributes.color.array : new Float32Array(p.count * 3).fill(1);
+        if (!NO_AO.has(k)) for (let i = 0; i < p.count; i++) {
+          const y = p.getY(i), ao = 0.5 + 0.5 * smooth(0, 1.5, y);
+          c[i * 3] *= ao; c[i * 3 + 1] *= ao; c[i * 3 + 2] *= ao;
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+      }
+      const m = new THREE.Mesh(g, Mats.get(k));
       m.castShadow = shadow !== false; m.receiveShadow = true;
       m.userData.mat = k;
       grp.add(m);
@@ -293,9 +306,12 @@ const Buildings = {
       tris = [[A, B, Q], [A, Q, P], [D, P, Q], [D, Q, C], [A, P, D], [B, C, Q]];
     }
     full.add(roofKey, Geo.tris(tris, Mats.scale(roofKey)));
-    // canto del alero
+    // canto del alero, canalones y bajantes
     full.box('trim', ex0, H - 0.1, ez1 - 0.06, ex1, H, ez1);
     full.box('trim', ex0, H - 0.1, ez0, ex0 + 0.06, H, ez1);
+    full.box('gutter', ex0, H - 0.2, ez1, ex1, H - 0.08, ez1 + 0.1);
+    for (const gx of [wx0 + 0.15, wx1 - 0.15]) full.box('gutter', gx - 0.04, 0.05, wz1 + 0.02, gx + 0.04, H - 0.12, wz1 + 0.1);
+    full.box('stone', dx - dw - 0.1, 0, wz1, dx + dw + 0.1, 0.12, wz1 + 0.35);
     if (b.chimney) {
       const cx = ex0 + (ex1 - ex0) * 0.7, cz = ez0 + (ez1 - ez0) * 0.4;
       full.box('bricks', cx - 0.2, H, cz - 0.2, cx + 0.2, H + R + 0.55, cz + 0.2);
@@ -524,68 +540,93 @@ const Props = {
 };
 
 // ---------------- VEGETACIÓN ----------------
+// Copas hechas con tarjetas de racimos de hojas reales (alfa), normales hacia fuera
+// para un sombreado volumétrico, y oclusión por vértice (más oscuras por dentro y por debajo).
 const Veg = {
-  blob(cx, cy, cz, rad, r, light, dark) {
-    const g = Geo.ni(new THREE.IcosahedronGeometry(rad, 1));
-    const p = g.attributes.position, n = g.attributes.normal;
-    const seed = r() * 100;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      const k = 1 + (Noise.value(x * 2.5 + seed, z * 2.5 + y * 1.7) - 0.5) * 0.45;
-      p.setXYZ(i, x * k, y * k * 0.85, z * k);
-      const l = Math.hypot(x, y, z) || 1; n.setXYZ(i, x / l, y / l, z / l);
-    }
-    g.translate(cx, cy, cz);
-    const bottom = cy - rad, span = rad * 2;
-    Geo.worldUV(g, 1.3);
-    return Geo.colorize(g, (x, y) => {
-      const t = clamp((y - bottom) / span, 0, 1), v = (r() - 0.5) * 0.08;
-      return [dark[0] + (light[0] - dark[0]) * t + v, dark[1] + (light[1] - dark[1]) * t + v, dark[2] + (light[2] - dark[2]) * t + v];
-    });
+  card(B, key, px, py, pz, w, h, rot, nrm, ao) {
+    const g = new THREE.PlaneGeometry(w, h).toNonIndexed();
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(rot));
+    g.translate(px, py, pz);
+    const n = g.attributes.normal, c = new Float32Array(n.count * 3);
+    for (let i = 0; i < n.count; i++) { n.setXYZ(i, nrm.x, nrm.y, nrm.z); c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = ao; }
+    g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    B.add(key, g);
   },
 
-  trunk(B, x, z, h, r0) {
-    const g = new THREE.CylinderGeometry(r0 * 0.6, r0, h, 7).toNonIndexed();
+  trunk(B, x, z, h, r0, lean) {
+    const g = new THREE.CylinderGeometry(r0 * 0.55, r0, h, 8, 3).toNonIndexed();
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const t = (p.getY(i) + h / 2) / h; p.setX(i, p.getX(i) + (lean ? lean[0] : 0) * t * t); p.setZ(i, p.getZ(i) + (lean ? lean[1] : 0) * t * t); }
+    g.computeVertexNormals();
     g.translate(x, h / 2, z);
-    B.add('bark', g);
+    Geo.worldUV(g, 1); B.add('bark', g);
+  },
+
+  canopy(B, cx, cy, cz, rx, ry, n, size, r) {
+    const up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < n; i++) {
+      const a = r() * 6.283, b = Math.acos(2 * r() - 1), rad = 0.45 + 0.55 * Math.sqrt(r());
+      const dx = Math.sin(b) * Math.cos(a), dy = Math.cos(b), dz = Math.sin(b) * Math.sin(a);
+      const px = cx + dx * rx * rad, py = cy + dy * ry * rad * 0.9, pz = cz + dz * rx * rad;
+      const nrm = new THREE.Vector3(dx, dy * 0.8 + 0.35, dz).normalize().lerp(up, 0.15).normalize();
+      const t = clamp((py - (cy - ry)) / (2 * ry), 0, 1);
+      const ao = clamp(0.28 + 0.72 * t * (0.45 + 0.55 * rad) + (r() - 0.5) * 0.14, 0.18, 1.05);
+      const s = size * (0.8 + r() * 0.5);
+      this.card(B, r() < 0.5 ? 'leaf' : 'leaf2', px, py, pz, s, s, new THREE.Euler(r() * 6.28, r() * 6.28, r() * 6.28), nrm, ao);
+    }
   },
 
   oak(B, x, z, seed, scale) {
-    const r = mulberry32(seed), s = scale || 1;
-    this.trunk(B, x, z, 2.1 * s, 0.17 * s);
-    for (const a of [0.6, 2.6, 4.4]) {
-      const g = new THREE.CylinderGeometry(0.04 * s, 0.08 * s, 0.9 * s, 5).toNonIndexed();
-      g.rotateZ(0.8); g.rotateY(a); g.translate(x + Math.cos(a) * 0.25 * s, 1.75 * s, z - Math.sin(a) * 0.25 * s);
-      B.add('bark', g);
+    const r = mulberry32(seed), s = scale || 1, lean = [(r() - 0.5) * 0.5, (r() - 0.5) * 0.5];
+    this.trunk(B, x, z, 2.4 * s, 0.2 * s, lean);
+    for (const a of [r() * 6, 2 + r() * 2, 4 + r() * 2]) {
+      const g = new THREE.CylinderGeometry(0.035 * s, 0.09 * s, 1.1 * s, 6).toNonIndexed();
+      g.rotateZ(0.85); g.rotateY(a); g.translate(x + lean[0] * 0.6 + Math.cos(a) * 0.32 * s, 2.0 * s, z + lean[1] * 0.6 - Math.sin(a) * 0.32 * s);
+      Geo.worldUV(g, 1); B.add('bark', g);
     }
-    const n = 6 + ((r() * 4) | 0);
-    for (let i = 0; i < n; i++) {
-      const a = r() * 6.283, d = r() * 0.75 * s;
-      B.add('leaves', this.blob(x + Math.cos(a) * d, (2.35 + (r() - 0.3) * 0.7) * s, z + Math.sin(a) * d, (0.55 + r() * 0.35) * s, r, [1.15, 1.15, 1.05], [0.38, 0.45, 0.35]));
+    const cx = x + lean[0], cz = z + lean[1];
+    this.canopy(B, cx, 2.75 * s, cz, 1.55 * s, 1.15 * s, 42, 1.25 * s, r);
+    // racimos secundarios para romper la silueta
+    for (let k = 0; k < 3; k++) {
+      const a = r() * 6.28;
+      this.canopy(B, cx + Math.cos(a) * 0.9 * s, (2.4 + r() * 0.6) * s, cz + Math.sin(a) * 0.9 * s, 0.75 * s, 0.6 * s, 9, 1.0 * s, r);
     }
   },
 
   pine(B, x, z, seed, scale, simple) {
-    const r = mulberry32(seed), s = scale || 1, tiers = simple ? 3 : 5;
-    if (!simple) this.trunk(B, x, z, 1.2 * s, 0.13 * s);
-    for (let i = 0; i < tiers; i++) {
-      const t = i / (tiers - 1), rad = (1.05 - t * 0.7) * s, y = (0.8 + t * 2.2) * s;
-      const g = new THREE.ConeGeometry(rad, (simple ? 1.5 : 1.1) * s, simple ? 7 : 10, simple ? 1 : 2).toNonIndexed();
-      const p = g.attributes.position;
-      for (let k = 0; k < p.count; k++) { const px = p.getX(k), pz = p.getZ(k), j = 1 + (Noise.value(px * 4 + seed, pz * 4 + i) - 0.5) * 0.35; p.setX(k, px * j); p.setZ(k, pz * j); }
-      g.computeVertexNormals();
-      g.translate(x, y + 0.55 * s, z);
-      Geo.worldUV(g, 1.2);
-      B.add('pine', Geo.colorize(g, (px, py) => { const q = clamp((py - y) / (1.1 * s), 0, 1); return [0.5 + q * 0.6, 0.55 + q * 0.6, 0.5 + q * 0.5]; }));
+    const r = mulberry32(seed), s = scale || 1;
+    this.trunk(B, x, z, 3.9 * s, 0.14 * s);
+    const whorls = simple ? 5 : 9, per = simple ? 5 : 7;
+    for (let i = 0; i < whorls; i++) {
+      const t = i / (whorls - 1), y = (0.75 + t * 3.1) * s, R = (1.35 - t * 1.0) * s;
+      for (let k = 0; k < per; k++) {
+        const a = (k / per) * 6.283 + i * 0.7 + r() * 0.4, len = R * (0.85 + r() * 0.3);
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const nrm = new THREE.Vector3(ca, 0.9, sa).normalize();
+        const ao = clamp(0.4 + 0.55 * t + (r() - 0.5) * 0.12, 0.3, 1);
+        // rama radial que cae hacia fuera; dos tarjetas cruzadas para dar volumen
+        for (const roll of simple ? [0] : [0, Math.PI / 2]) {
+          const g = new THREE.PlaneGeometry(len * 1.05, len * 0.45).toNonIndexed();
+          g.translate(len * 0.5, 0, 0);
+          g.rotateX(roll - Math.PI / 2);
+          g.rotateZ(-0.28);
+          g.rotateY(-a);
+          g.translate(x, y, z);
+          const n = g.attributes.normal, c = new Float32Array(n.count * 3);
+          for (let q = 0; q < n.count; q++) { n.setXYZ(q, nrm.x, nrm.y, nrm.z); c[q * 3] = c[q * 3 + 1] = c[q * 3 + 2] = ao; }
+          g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+          B.add('pine', g);
+        }
+      }
     }
+    // copa superior
+    this.card(B, 'pine', x, 4.05 * s, z, 0.45 * s, 0.9 * s, new THREE.Euler(0, r() * 3, Math.PI / 2), new THREE.Vector3(0, 1, 0), 1);
+    this.card(B, 'pine', x, 4.05 * s, z, 0.45 * s, 0.9 * s, new THREE.Euler(Math.PI / 2, r() * 3, Math.PI / 2), new THREE.Vector3(0, 1, 0), 1);
   },
 
   bush(B, x, z, seed) {
     const r = mulberry32(seed);
-    for (let i = 0; i < 4; i++) {
-      const a = r() * 6.283, d = r() * 0.25;
-      B.add('leaves', this.blob(x + Math.cos(a) * d, 0.3 + r() * 0.15, z + Math.sin(a) * d, 0.3 + r() * 0.15, r, [1.05, 1.1, 0.95], [0.45, 0.5, 0.4]));
-    }
+    this.canopy(B, x, 0.42, z, 0.62, 0.42, 11, 0.85, r);
   }
 };
 

@@ -44,22 +44,27 @@ Arrastra un objeto sobre el retrato de un compañero cercano para dárselo.
 - **Objetivos:** principal (volar el depósito y llegar a la extracción) y opcional (documentos del oficial). Valoración final de 5 estrellas.
 
 ## Apartado visual
-- Vista isométrica 3D (cámara ortográfica a ~30°, como Commandos 2) con Three.js.
-- Texturas fotográficas reales de [ambientCG](https://ambientcg.com) (licencia CC0): hierba, tierra, grava, ladrillo, yeso, hormigón, tablones, tejas, pizarra, chapa ondulada, corteza, hojas, tela y metal.
-- Suelo mezclado por shader según el tipo de terreno, con bordes orgánicos y variación a gran escala.
-- Edificios en 3D con dos fachadas visibles, entramado, ventanas, contraventanas, chimeneas y tejados a cuatro aguas; al entrar un comando se ven por dentro.
-- Sol con sombras proyectadas en tiempo real, árboles que se mecen, río con agua animada y puentes.
-- Soldados en 3D animados (andar, agacharse, apuntar, caer), con el uniforme y el tocado de cada uno.
-- Partículas 3D (fuego, humo, restos, fogonazos) con luz de explosión y temblor de cámara.
-- Interfaz con retratos, mochila de acciones, cursor propio y expediente de misión; sonido sintetizado.
+- **Iluminación física (PBR):** materiales con mapas de normales y rugosidad; luz ambiental de un cielo atmosférico real (Sky + PMREM); sol cálido de tarde con sombras suaves.
+- **Postprocesado de cine:** render HDR con MSAA, bloom en fuego y destellos, tonemapping ACES, gradación de color cálida, desenfoque «tilt-shift» de maqueta, viñeta y grano.
+- **Vegetación real:** copas de árbol hechas con racimos de hojas fotográficas (sombras moteadas), pinos con ramas reales y miles de matas de hierba 3D instanciadas que se mueven con el viento.
+- **Suelo:** mezcla de texturas fotográficas a 1024 px con relieve, oclusión ambiental precalculada junto a muros, árboles y objetos, y sombras de nubes en movimiento.
+- **Soldados animados:** esqueleto y animaciones capturadas (reposo, andar, correr) con uniformes de la época construidos por piezas: guerrera, cinturón, botas, casco alemán, boina, gorra de plato, sombrero o casco británico, fusil y mochila.
+- **Agua** con reflejo del cielo, orillas suaves y espuma; edificios con canalones, bajantes y escalones; partículas 3D y luces de explosión.
+- **Calidad adaptativa:** si el equipo no llega a unos 30 fps, se desactivan bloom y tilt-shift y se reduce la resolución.
 
-## Texturas
-`assets/textures.js` contiene las texturas incrustadas, para que el juego funcione abriendo el archivo directamente.
-Se regeneran con `python3 tools/build_textures.py` (requiere Pillow e Internet).
+Requiere un navegador con WebGL 2 y, para ir fluido, una tarjeta gráfica dedicada o integrada reciente.
+
+## Recursos y créditos
+- Texturas y atlas de hojas/hierba: [ambientCG](https://ambientcg.com) (CC0). Se regeneran con `python3 tools/build_textures.py`.
+- Esqueleto y animaciones del soldado: `Soldier.glb` de los ejemplos de Three.js (personaje de Mixamo). Se regenera con `python3 tools/build_models.py`. La malla original no se dibuja; solo se usa su esqueleto animado.
+- Three.js r147 y sus módulos de ejemplo (licencia MIT) en `vendor/`.
+
+Todo va incrustado en `assets/` para que el juego funcione abriendo `index.html` directamente.
 
 ## Estructura
 - `js/util.js` utilidades · `js/textures.js` ruido y color · `js/level.js` mapa, LOS, A*
-- `js/entities.js` comandos e IA enemiga · `js/models.js` materiales y modelos 3D · `js/render3d.js` escena, cámara, partículas
+- `js/entities.js` comandos e IA enemiga · `js/models.js` materiales, edificios, objetos y vegetación · `js/characters.js` soldados animados
+- `js/render3d.js` escena, postprocesado, suelo, hierba, agua, partículas · `js/assets.js` carga de recursos
 - `js/items.js` inventario y objetos · `js/input.js` controles · `js/hud.js` interfaz, mochila, mapa táctico
 - `js/hudart.js` iconos y retratos · `js/audio.js` sonido · `js/main.js` reglas, bucle, guardado
-- `vendor/three.min.js` Three.js r147 (licencia MIT) · `assets/textures.js` texturas CC0
+- `vendor/three.min.js`, `vendor/three-extras.js` Three.js r147 · `assets/textures.js`, `assets/models.js` recursos incrustados

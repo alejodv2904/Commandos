@@ -122,3 +122,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#11160c;font-family:
 /* F8: ocultar interfaz */
 body.nohud #hud,body.nohud #objectives,body.nohud #minimap-wrap{display:none}
 body.nohud #game,body.nohud #ui{height:100%}
+
+/* Pantalla de carga */
+.loading{text-align:center}
+.loading .lt{font-family:"Black Ops One",Impact,sans-serif;font-size:54px;letter-spacing:.08em;color:#e8d8a0;text-shadow:0 3px 12px rgba(0,0,0,.8)}
+.loading .lbar{width:360px;height:10px;margin:18px auto 10px;border:1px solid #8a7442;background:rgba(0,0,0,.5)}
+.loading #lfill{height:100%;width:0;background:linear-gradient(90deg,#8a7442,#e8c870);transition:width .2s}
+.loading .ls{color:#c8b88a;font-size:14px}
