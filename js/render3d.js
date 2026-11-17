@@ -1,10 +1,12 @@
 'use strict';
 // Render 3D isométrico con Three.js (cámara ortográfica a ~30° como Commandos 2).
 
-const CAM_OFF = new THREE.Vector3(-1, 0.82, 1).normalize();   // la cámara mira desde el suroeste
+// Cámara con 4 vistas fijas de 90° (como Commandos 2). Vista 0: desde el suroeste.
+const CAM_BASE = new THREE.Vector3(-1, 0.82, 1).normalize();
+const CAM_OFF = CAM_BASE.clone();
 const SCREEN_RIGHT = new THREE.Vector3(1, 0, 1).normalize();  // dirección en el suelo hacia la derecha de la pantalla
 const SCREEN_UP = new THREE.Vector3(1, 0, -1).normalize();    // dirección en el suelo hacia arriba de la pantalla
-const ELEV_SIN = CAM_OFF.y;
+const ELEV_SIN = CAM_BASE.y;
 
 // ---------------- PARTÍCULAS ----------------
 const FX = {
@@ -82,7 +84,7 @@ const FX = {
 
 // ---------------- RENDER ----------------
 const Render = {
-  target: new THREE.Vector3(8, 0, 36), zoom: 1, viewH: 15, time: 0, sway: [],
+  target: new THREE.Vector3(8, 0, 36), zoom: 1, viewH: 15, time: 0, sway: [], rot: 0, sides: null,
   open: [], bld: [], iconCache: {}, decals: [],
 
   init(canvas, ui) {
@@ -143,12 +145,27 @@ const Render = {
     c.position.copy(this.target).addScaledVector(CAM_OFF, 120);
     c.lookAt(this.target);
     c.updateMatrixWorld();
-    const ext = Math.max(halfW, halfH / ELEV_SIN) * 1.25 + 4;
+    const ext = Math.hypot(halfW, halfH / ELEV_SIN) * 1.35 + 6;
     const sc = this.sun.shadow.camera;
     sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = 120; sc.updateProjectionMatrix();
     this.sun.position.set(this.target.x - 9, 26, this.target.z - 16);
     this.sun.target.position.copy(this.target); this.sun.target.updateMatrixWorld();
   },
+  setRotation(r) {
+    this.rot = ((r % 4) + 4) % 4;
+    const a = -this.rot * Math.PI / 2, Y = new THREE.Vector3(0, 1, 0);
+    CAM_OFF.copy(CAM_BASE).applyAxisAngle(Y, a);
+    SCREEN_RIGHT.set(1, 0, 1).normalize().applyAxisAngle(Y, a);
+    SCREEN_UP.set(1, 0, -1).normalize().applyAxisAngle(Y, a);
+    // vegetación alta solo en los bordes alejados de la cámara
+    if (this.sides) for (const side in this.sides) {
+      const n = { w: [-1, 0], e: [1, 0], n: [0, -1], s: [0, 1] }[side];
+      const near = n[0] * CAM_OFF.x + n[1] * CAM_OFF.z > 0;
+      this.sides[side].tall.visible = !near; this.sides[side].low.visible = near;
+    }
+    this.updateCamera();
+  },
+
   pixelWorld() { return (this.viewH / this.zoom) / (this.canvas.clientHeight || this.canvas.height); },
   panPixels(dx, dy) {
     const k = this.pixelWorld();
@@ -192,26 +209,32 @@ const Render = {
     // objetos
     const pb = new Batch();
     Level.props.forEach(p => { if (p.type !== 'depot') Props.build(pb, p); });
-    Props.fences(pb); Props.bridges(pb);
+    Props.bridges(pb);
     this.level.add(pb.build());
+    this.fenceMesh = null; this.rebuildFences();
     this.buildDepot();
     // vegetación
     const vb = new Batch();
     Level.trees.forEach((t, i) => t.pine ? Veg.pine(vb, t.x, t.y, i * 13 + 5, 1.05) : Veg.oak(vb, t.x, t.y, i * 17 + 3, 1.0 + (i % 3) * 0.1));
-    // La cámara mira desde el suroeste: árboles altos solo en los bordes norte y este,
-    // matorral bajo en los bordes sur y oeste para no tapar la acción.
+    // Bordes: en cada lado, una versión alta (bosque) y otra baja (matorral); se muestra
+    // la baja en los lados más cercanos a la cámara para no tapar la acción.
+    const side = (x, z) => x < 0.6 ? 'w' : x > Level.W - 0.6 ? 'e' : z < 0.6 ? 'n' : 's';
+    const S = {}; for (const k of ['n', 's', 'e', 'w']) S[k] = { tall: new Batch(), low: new Batch() };
     Level.border.forEach((t, i) => {
-      const nearSide = t.x < 1 || t.y > Level.H - 1;
-      if (nearSide) Veg.bush(vb, clamp(t.x, 0.4, Level.W - 0.4), clamp(t.y, 0.4, Level.H - 0.4), i * 5 + 2);
-      else if (t.pine) Veg.pine(vb, t.x, t.y, i * 11 + 1, 1.25); else Veg.oak(vb, t.x, t.y, i * 7 + 9, 1.2);
+      const k = side(t.x, t.y);
+      if (t.pine) Veg.pine(S[k].tall, t.x, t.y, i * 11 + 1, 1.25); else Veg.oak(S[k].tall, t.x, t.y, i * 7 + 9, 1.2);
+      Veg.bush(S[k].low, clamp(t.x, 0.4, Level.W - 0.4), clamp(t.y, 0.4, Level.H - 0.4), i * 5 + 2);
     });
     const fr = mulberry32(77);
-    for (let z = -12; z < Level.H + 10; z += 1.6) for (let x = -10; x < Level.W + 12; x += 1.6) {
+    for (let z = -12; z < Level.H + 12; z += 1.6) for (let x = -12; x < Level.W + 12; x += 1.6) {
       if (x > -0.5 && x < Level.W + 0.5 && z > -0.5 && z < Level.H + 0.5) continue;
-      const px = x + (fr() - 0.5) * 1.2, pz = z + (fr() - 0.5) * 1.2;
-      if (px > Level.W || pz < 0) Veg.pine(vb, px, pz, (x * 7 + z * 13) | 0, 1.1 + fr() * 0.5, true);   // bosque al norte y al este
-      else if (fr() < 0.35) Veg.bush(vb, px, pz, (x * 3 + z * 17) | 0);                                // matorral al sur y al oeste
+      const px = x + (fr() - 0.5) * 1.2, pz = z + (fr() - 0.5) * 1.2, r1 = fr(), r2 = fr();
+      const k = px < 0 && pz > 0 && pz < Level.H ? 'w' : px > Level.W && pz > 0 && pz < Level.H ? 'e' : pz < 0 ? 'n' : 's';
+      Veg.pine(S[k].tall, px, pz, (x * 7 + z * 13) | 0, 1.1 + r1 * 0.5, true);
+      if (r2 < 0.35) Veg.bush(S[k].low, px, pz, (x * 3 + z * 17) | 0);
     }
+    this.sides = {};
+    for (const k in S) { this.sides[k] = { tall: S[k].tall.build(), low: S[k].low.build() }; this.level.add(this.sides[k].tall, this.sides[k].low); }
     for (let ty = 0; ty < Level.H; ty++) for (let tx = 0; tx < Level.W; tx++) if (Level.at(tx, ty) === 'T') Veg.bush(vb, tx + 0.5, ty + 0.5, tx * 31 + ty);
     this.level.add(vb.build());
     // marca de extracción
@@ -220,6 +243,12 @@ const Render = {
     this.exitLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0x9fd4ff, dashSize: 0.4, gapSize: 0.3, transparent: true }));
     this.exitLine.computeLineDistances(); this.level.add(this.exitLine);
     this.bakeMini();
+  },
+
+  rebuildFences() {
+    if (this.fenceMesh) { this.level.remove(this.fenceMesh); this.fenceMesh.traverse(c => c.geometry && c.geometry.dispose()); }
+    const fb = new Batch(); Props.fences(fb);
+    this.fenceMesh = fb.build(); this.level.add(this.fenceMesh);
   },
 
   buildDepot() {
@@ -372,7 +401,7 @@ const Render = {
     }
     for (const p of Level.props) {
       if (p.type === 'truck' || p.type === 'jeep' || p.type === 'tent') { if (hitBox(p.x, 0, p.y, p.x + p.w, 1.7, p.y + p.h)) return true; }
-      else if (p.type === 'tower') { if (hitBox(p.x - 0.2, 3.1, p.y - 0.2, p.x + p.w + 0.2, 5.2, p.y + p.h + 0.2)) return true; }
+      else if (p.type === 'tower') { if (hitBox(p.x - 0.2, 3.1, p.y - 0.2, p.x + p.w + 0.2, 5.8, p.y + p.h + 0.2)) return true; }
     }
     for (const t of Level.trees) {
       const c = new THREE.Vector3(t.x, t.pine ? 2.0 : 2.4, t.y), r = t.pine ? 0.9 : 1.15;
@@ -417,18 +446,44 @@ const Render = {
     const c = this.cone(e);
     c.far.visible = c.near.visible = show;
     if (!show) return;
-    const alert = e.state === 'alert', range = alert ? 9 : 7.5, half = alert ? 1.1 : 0.62, near = range * 0.5, N = c.N;
-    const col = alert ? 0xe63c28 : (e.susp > 0.2 || e.state === 'investigate') ? 0xebc832 : 0x50d246;
+    const v = e.vision(), N = c.N;
+    // verde claro = zona cercana (te ven siempre); verde oscuro = lejana (tumbado eres invisible)
+    let nearCol = 0x9cf07c, farCol = 0x2f8f2a;
+    if (e.state === 'alert') { nearCol = 0xff7a5c; farCol = 0xc8261a; }
+    else if (e.state === 'investigate' && e.invKind === 'sight') { nearCol = 0x9ccfff; farCol = 0x2a62c8; }
+    else if (e.state === 'investigate') { nearCol = 0xffc870; farCol = 0xd07a10; }
     const pf = c.far.geometry.attributes.position, pn = c.near.geometry.attributes.position;
-    pf.setXYZ(0, e.x, 0.05, e.y); pn.setXYZ(0, e.x, 0.055, e.y);
+    pf.setXYZ(0, e.x, 0.05, e.y); pn.setXYZ(0, e.x, 0.056, e.y);
     for (let i = 0; i <= N; i++) {
-      const a = e.face - half + (2 * half * i) / N, d = Level.rayLength(e.x, e.y, a, range), dn = Math.min(d, near);
+      const a = e.face - v.half + (2 * v.half * i) / N, d = Level.rayLength(e.x, e.y, a, v.range), dn = Math.min(d, v.near);
       pf.setXYZ(i + 1, e.x + Math.cos(a) * d, 0.05, e.y + Math.sin(a) * d);
-      pn.setXYZ(i + 1, e.x + Math.cos(a) * dn, 0.055, e.y + Math.sin(a) * dn);
+      pn.setXYZ(i + 1, e.x + Math.cos(a) * dn, 0.056, e.y + Math.sin(a) * dn);
     }
     pf.needsUpdate = pn.needsUpdate = true;
-    c.far.material.color.setHex(col); c.near.material.color.setHex(col);
-    c.far.material.opacity = 0.17; c.near.material.opacity = 0.22;
+    c.far.material.color.setHex(farCol); c.near.material.color.setHex(nearCol);
+    c.far.material.opacity = 0.26; c.near.material.opacity = 0.3;
+  },
+
+  // Objetos dejados en el suelo: cebos, señuelos y bombas
+  syncDrops(G) {
+    if (!this.drops) { this.drops = new THREE.Group(); this.scene.add(this.drops); }
+    const want = [];
+    for (const b of G.baits) want.push([b, b.type]);
+    for (const d of G.decoys) want.push([d, 'decoy']);
+    for (const b of G.bombs) want.push([b, 'bomb']);
+    const keep = new Set(want.map(w => w[0]));
+    for (const m of [...this.drops.children]) if (!keep.has(m.userData.obj)) this.drops.remove(m);
+    for (const [o, type] of want) {
+      if (!o._mesh || o._mesh.parent !== this.drops) {
+        const B = new Batch();
+        if (type === 'cigs') B.box('white', -0.08, 0, -0.05, 0.08, 0.04, 0.05);
+        else if (type === 'wine') { Props.cyl(B, 'oliveDark', 0, 0.14, 0, 0.05, 0.28, 'y', 8); Props.cyl(B, 'oliveDark', 0, 0.33, 0, 0.02, 0.1, 'y', 6); }
+        else if (type === 'decoy') { B.box('olive', -0.1, 0, -0.08, 0.1, 0.12, 0.08); B.box('red', -0.02, 0.12, -0.02, 0.02, 0.16, 0.02); }
+        else { for (let i = 0; i < 3; i++) Props.cyl(B, 'red', -0.08 + i * 0.08, 0.05, 0, 0.04, 0.3, 'z', 8); B.box('rubber', -0.14, 0.02, -0.06, 0.14, 0.08, 0.06); }
+        o._mesh = B.build(); o._mesh.userData.obj = o; this.drops.add(o._mesh);
+      }
+      o._mesh.position.set(o.x, 0, o.y);
+    }
   },
 
   draw(G, dt) {
@@ -445,13 +500,15 @@ const Render = {
     // enemigos
     const hov = G.hover && G.hover.enemy;
     for (const e of G.enemies) {
-      const m = this.model(e, e.officer ? 'officer' : 'soldier');
+      const m = this.model(e, e.R.kind);
       const gone = e.hidden || e.carried;
       m.visible = !gone;
-      const lying = e.state === 'dead' || e.state === 'down';
+      const lying = !e.alive;
       if (e.state === 'dead' && !e.decal && e.cause !== 'boom') { this.decal('blood', e.x, e.y); e.decal = true; }
-      Soldier.pose(m, { x: e.x, y: e.y, face: lying ? (e.id % 2 ? 0.4 : 2.6) : e.face, moving: !!(e.path && e.path.length && !e.holding) && !lying, anim: e.anim, aim: e.state === 'alert' && !!e.seenNow, lying, side: e.id % 2 ? 1 : -1 });
-      const showCone = !gone && !lying && (G.coneMode === 'all' || e.inspect || e === hov || e.state === 'alert');
+      Soldier.pose(m, { x: e.x, y: e.y, face: lying ? (e.id % 2 ? 0.4 : 2.6) : e.face, moving: !!(e.path && e.path.length && !e.holding) && !lying && e.baitT <= 0, anim: e.anim, aim: e.state === 'alert' && !!e.seenNow, lying, side: e.id % 2 ? 1 : -1, busy: e.baitT > 0 ? 'plant' : null, crouch: e.baitT > 0 });
+      m.position.y = e.R.elev || 0;
+      if (e.drunkT > 0 && !lying) m.rotation.z = Math.sin(this.time * 2.5) * 0.12;
+      const showCone = !gone && !lying && e.baitT <= 0 && (G.coneMode === 'all' || e.inspect || e === hov || e.state === 'alert');
       this.updateCone(e, showCone);
     }
     // comandos
@@ -460,11 +517,11 @@ const Render = {
       const kind = u.disguised ? 'spyDis' : u.type;
       const m = this.model(u, kind, true);
       m.visible = u.alive;
-      const st = { x: u.x, y: u.y, face: u.face, moving: u.moving, anim: u.anim, crouch: u.crouch, aim: u.busyKind === 'shoot', busy: u.busyKind, carry: !!u.carry, lying: !u.alive, side: 1 };
+      const st = { x: u.x, y: u.y, face: u.face, moving: u.moving, anim: u.anim, prone: u.prone && !u.dying, aim: u.busyKind === 'aim' || u.cover, busy: u.busyKind, carry: !!u.carry, lying: !u.alive || u.dying, side: 1 };
       Soldier.pose(m, st);
       if (!u.alive) { m.visible = true; }
       Soldier.pose(u._g, st);
-      u._g.visible = u.alive && this.occluded(u);
+      u._g.visible = u.alive && !u.dying && this.occluded(u);
       u._ring.visible = u.alive && u.selected;
       u._ring.position.x = u.x; u._ring.position.z = u.y;
       if (u.alive && u.selected && u.path.length) {
@@ -473,7 +530,7 @@ const Render = {
       } else u._line.visible = false;
     }
     // anillo de alcance
-    const rr = pu && (pu.action === 'shoot' ? 13 : (pu.action === 'grenade' || pu.action === 'lure') ? 9 : 0);
+    const rr = pu && ({ sniper: 13, pistol: 7, grenade: 9, cigs: 4, wine: 4 }[pu.action] || 0);
     this.rangeRing.visible = !!rr;
     if (rr) { this.rangeRing.position.set(pu.x, 0, pu.y); this.rangeRing.scale.set(rr, 1, rr); }
 
@@ -481,10 +538,11 @@ const Render = {
     const tp = [], tc = [];
     for (const f of G.fx) if (f.k === 'tracer') {
       const a = f.t / f.dur, c = f.enemy ? [1, 0.6, 0.3] : [1, 1, 0.8];
-      tp.push(f.x0, 0.65, f.y0, f.x1, 0.6, f.y1); tc.push(c[0] * a, c[1] * a, c[2] * a, c[0] * a, c[1] * a, c[2] * a);
+      tp.push(f.x0, 0.65 + (f.h0 || 0), f.y0, f.x1, 0.6 + (f.h1 || 0), f.y1); tc.push(c[0] * a, c[1] * a, c[2] * a, c[0] * a, c[1] * a, c[2] * a);
     }
     this.tracers.geometry.setAttribute('position', new THREE.Float32BufferAttribute(tp, 3));
     this.tracers.geometry.setAttribute('color', new THREE.Float32BufferAttribute(tc, 3));
+    this.syncDrops(G);
     FX.sync();
 
     // temblor de cámara
@@ -507,7 +565,10 @@ const Render = {
     }
     for (const e of G.enemies) {
       if (e.state === 'dead' || e.hidden || e.carried || this.closedAt(e.x, e.y)) continue;
-      const s = this.toScreen(e.x, 1.25, e.y);
+      const s = this.toScreen(e.x, 1.25 + (e.R.elev || 0), e.y);
+      if (G.hl.enemies && e.alive) { c.strokeStyle = '#ff3020'; c.lineWidth = 2; c.beginPath(); c.arc(s.x, s.y + 22, 18, 0, 7); c.stroke(); }
+      if (e.state === 'tied') { c.fillStyle = '#ffd9a0'; c.font = 'bold 12px sans-serif'; c.textAlign = 'center'; c.fillText('atado', s.x, s.y + 24); continue; }
+      if (e.drunkT > 0 && e.alive) { c.fillStyle = '#d0a0ff'; c.font = 'bold 12px sans-serif'; c.textAlign = 'center'; c.fillText('ebrio', s.x, s.y - 18); }
       if (e.state === 'down') {
         c.fillStyle = '#e8f0ff'; c.font = 'bold 14px sans-serif'; c.textAlign = 'center';
         c.fillText('z', s.x + 6, s.y + 20 + Math.sin(this.time * 2) * 3); c.fillText('Z', s.x + 14, s.y + 10 + Math.sin(this.time * 2 + 1) * 3);
@@ -515,28 +576,41 @@ const Render = {
       }
       if (e.state === 'alert') this.mark(c, s.x, s.y, '!', '#ff4030');
       else if (e.susp > 0.2 || e.state === 'investigate') {
-        this.mark(c, s.x, s.y, '?', '#ffd23a');
+        this.mark(c, s.x, s.y, '?', e.invKind === 'sight' && e.state === 'investigate' ? '#8cc8ff' : '#ffb340');
         if (e.susp > 0.2) { c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(s.x - 13, s.y + 4, 26, 5); c.fillStyle = '#ffd23a'; c.fillRect(s.x - 12, s.y + 5, 24 * Math.min(1, e.susp), 3); }
       }
     }
     for (const u of G.units) {
       if (!u.alive) continue;
       const s = this.toScreen(u.x, 1.2, u.y);
-      if (u.selected) for (let i = 0; i < u.def.hp; i++) {
-        c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(s.x - u.def.hp * 5 + i * 10 - 1, s.y - 6, 9, 6);
-        c.fillStyle = i < u.hp ? '#5ad04a' : '#4a1a1a'; c.fillRect(s.x - u.def.hp * 5 + i * 10, s.y - 5, 7, 4);
+      if (u.selected && !u.dying) {
+        c.fillStyle = 'rgba(0,0,0,.65)'; c.fillRect(s.x - 19, s.y - 7, 38, 7);
+        const f = u.hp / u.maxHp; c.fillStyle = f > 0.5 ? '#5ad04a' : f > 0.25 ? '#e0b030' : '#e04030'; c.fillRect(s.x - 18, s.y - 6, 36 * f, 5);
       }
-      if (u.busyT > 0 && u.busyKind === 'plant') {
-        const p = 1 - u.busyT / 3;
+      if (u.scrutiny > 0.02) { // barra azul vertical: el disfraz está siendo examinado
+        c.fillStyle = 'rgba(0,0,0,.7)'; c.fillRect(s.x + 16, s.y - 4, 8, 34);
+        c.fillStyle = '#4aa0ff'; c.fillRect(s.x + 17, s.y - 3 + 32 * u.scrutiny, 6, 32 * (1 - u.scrutiny));
+      }
+      if (u.dying) { c.fillStyle = Math.floor(this.time * 3) % 2 ? '#ff5030' : '#ffd0a0'; c.font = 'bold 15px sans-serif'; c.textAlign = 'center'; c.fillText('✚ ' + Math.ceil(u.dyingT) + ' s', s.x, s.y + 20); }
+      if (u.cover) { c.strokeStyle = '#ffb340'; c.lineWidth = 2; c.strokeRect(s.x - 9, s.y - 26, 18, 18); }
+      if (u.busyT > 0 && u.busyTotal > 0.9) {
+        const p = 1 - u.busyT / u.busyTotal;
         c.fillStyle = 'rgba(0,0,0,.7)'; c.fillRect(s.x - 18, s.y - 16, 36, 7);
         c.fillStyle = '#ff9a4d'; c.fillRect(s.x - 17, s.y - 15, 34 * p, 5);
       }
     }
-    if (G.bomb) {
-      const s = this.toScreen(G.bomb.x, 2.2, G.bomb.y);
+    for (const b of G.bombs) {
+      const s = this.toScreen(b.x, 1.2, b.y);
       c.fillStyle = 'rgba(0,0,0,.75)'; Sprites.rr(c, s.x - 30, s.y - 24, 60, 24, 4); c.fill();
-      c.fillStyle = Math.ceil(G.bomb.t) % 2 ? '#ff9a4d' : '#ffd080'; c.font = 'bold 17px monospace'; c.textAlign = 'center';
-      c.fillText('00:' + String(Math.ceil(G.bomb.t)).padStart(2, '0'), s.x, s.y - 6);
+      c.fillStyle = Math.ceil(b.t) % 2 ? '#ff9a4d' : '#ffd080'; c.font = 'bold 17px monospace'; c.textAlign = 'center';
+      c.fillText('00:' + String(Math.ceil(b.t)).padStart(2, '0'), s.x, s.y - 6);
+    }
+    if (G.hl.items) { // F10: resaltar objetos interactivos
+      const ring = (x, y, h) => { const s = this.toScreen(x, h, y); c.strokeStyle = '#ffe040'; c.lineWidth = 2; c.beginPath(); c.arc(s.x, s.y, 14, 0, 7); c.stroke(); };
+      for (const l of Level.loot) if (l.items.length) ring(l.x, l.y, 0.8);
+      for (const e of G.enemies) if (!e.alive && !e.hidden && !e.carried && e.loot.length) ring(e.x, e.y, 0.2);
+      for (const b of G.baits) ring(b.x, b.y, 0.1);
+      const ex = Level.exit; ring((ex.x0 + ex.x1 + 1) / 2, (ex.y0 + ex.y1 + 1) / 2, 0);
     }
     const ex = Level.exit, es = this.toScreen((ex.x0 + ex.x1 + 1) / 2, 0, ex.y1 + 1.6);
     c.fillStyle = `rgba(200,230,255,${0.6 + Math.sin(this.time * 3) * 0.25})`; c.font = '15px "Black Ops One", Impact, sans-serif'; c.textAlign = 'center';

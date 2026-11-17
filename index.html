@@ -23,16 +23,19 @@
       <div id="unit-name"></div>
       <div id="unit-hp"></div>
       <div id="unit-state"></div>
+      <div id="abil"></div>
     </div>
     <div id="backpack">
       <div class="bp-title">MOCHILA</div>
-      <div id="slots"></div>
+      <div id="inv"></div>
     </div>
   </div>
   <div id="squad" class="leather"></div>
   <div id="hint" class="leather"></div>
 </div>
 
+<div id="tactical"><div class="tframe"><div class="ttitle">MAPA TÁCTICO <small>F9 / Esc para cerrar</small></div><canvas id="tmap" width="960" height="660"></canvas>
+<div class="tlegend"><span style="color:#4cff3a">●</span> Comandos · <span style="color:#d83a2a">●</span> Enemigos y su mirada · <span style="color:#d03020">⚑</span> Objetivo principal · <span style="color:#e8c030">⚑</span> Objetivo opcional / objetos · <span style="color:#3a8ae0">⚑</span> Extracción</div></div></div>
 <div id="overlay"></div>
 
 <script src="vendor/three.min.js"></script>
@@ -40,11 +43,14 @@
 <script src="js/util.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/level.js"></script>
+<script src="js/items.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/hudart.js"></script>
 <script src="js/models.js"></script>
 <script src="js/render3d.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/main.js"></script>
+<script src="js/input.js"></script>
+<script src="js/hud.js"></script>
 </body>
 </html>

@@ -5,35 +5,43 @@ Juego de estrategia táctica en tiempo real inspirado en *Commandos 2*, en 3D is
 ## Cómo jugar
 Abre `index.html` en el navegador (doble clic). Funciona sin servidor: Three.js y las texturas van incluidos en el repositorio.
 
-**Misión:** infiltra a los 4 comandos, destruye el depósito de combustible con la carga del Zapador y reúne a todos en la zona de extracción (arriba a la izquierda). Si cae un comando, la misión fracasa.
+**Misión:** infiltra a los 4 comandos, vuela el depósito de combustible con la bomba del Zapador y reúne a todos en la extracción. Opcional: roba los documentos del oficial.
 
-## Controles (como en Commandos 2)
+## Controles (configuración clásica de Commandos 2)
 | Entrada | Acción |
 |---|---|
-| Clic izquierdo | Seleccionar comando / mover (doble clic o Shift: correr) |
-| Arrastrar | Selección múltiple |
-| Clic derecho | Ejecutar la acción elegida |
-| 1 · 2 · 3 | Elegir acción del comando |
-| Espacio | Pausa (se pueden dar órdenes en pausa) |
-| F1–F4 / Tab | Seleccionar comando |
-| WASD / flechas / bordes / clic central | Cámara; rueda = zoom |
-| F5 / F9 | Guardado / carga rápida |
-| C | Agacharse / levantarse |
-| V | Conos de visión: todos / solo los señalados |
-| M | Activar / desactivar sonido |
-| Esc / X | Cancelar acción / detener |
+| Clic izquierdo | Seleccionar · andar · usar el objeto equipado |
+| Doble clic | Correr (hace ruido) |
+| Clic derecho | Cancelar la acción · arrastrar: selección múltiple |
+| Shift + clic | Interactuar: cargar/soltar cuerpos, registrar |
+| Alt + clic · ← → | Girar la cámara 90° (4 vistas) |
+| ↑ ↓ · bordes · clic central · rueda | Desplazar cámara · zoom |
+| 1–9 · Ctrl+1–9 · 0 | Elegir comando · añadir/quitar · ninguno |
+| Espacio · X | Cuerpo a tierra · cubrirse (disparo automático) |
+| Q A S D | Puñetazo · cuchillo · pistola · rifle |
+| G F C V E | Granada · botiquín · cigarrillos · vino · alicates |
+| W · T · U / J | Examinar · hablar (Espía) · poner/quitar uniforme |
+| Tab / Intro | Fijar el cono del enemigo bajo el cursor (en vacío: todos) |
+| F1 · F8 · F9 · F10 · F11 · F12 | Ayuda · ocultar HUD · mapa táctico · objetos · enemigos · captura |
+| Ctrl+S · Ctrl+L · P | Guardado rápido · carga rápida · pausa |
 
-## Comandos
-- **Boina Verde:** cuchillo silencioso, carga y esconde cuerpos en arbustos.
-- **Francotirador:** disparo a larga distancia (ruidoso, 6 balas).
-- **Espía:** disfraz, anestesia silenciosa, señuelo sonoro.
-- **Zapador:** carga de tiempo y granadas (fuego amigo).
+## Comandos y mochila
+Cada comando tiene una mochila en cuadrícula (estilo Tetris); los objetos ocupan casillas según su tamaño
+(1×1 granada/cigarrillos, 2×1 cuchillo/pistola/cuerda, 2×2 botiquín/uniforme/bomba, 3×2 rifle).
+Arrastra un objeto sobre el retrato de un compañero cercano para dárselo.
+- **Boina Verde:** cuchillo, cuerdas, señuelos, cigarrillos, botiquín; puñetazo; carga cuerpos.
+- **Francotirador:** rifle de francotirador y munición; puñetazo; carga cuerpos.
+- **Espía:** jeringuilla, uniforme, pistola, cebos; hablar para entretener a un guardia; no carga cuerpos.
+- **Zapador:** bomba de relojería, granadas, alicates, pistola, ración; puñetazo; carga cuerpos.
 
-## Mecánicas
-- Conos de visión verdes de dos zonas, como en Commandos 2: en la zona clara solo ven a quien va de pie; en la oscura, también a los agachados. Paredes, árboles y vehículos bloquean la vista; los arbustos ocultan.
-- Sospecha progresiva (`?`) → alarma (`!`); el ruido y los cuerpos descubiertos atraen a las patrullas.
-- Edificios con interior: al entrar un comando, el tejado se retira y se ve el interior.
-- Siluetas de los comandos cuando quedan tapados por edificios o árboles.
+## Reglas (según la guía técnica de Commandos 2)
+- **Cono de visión de 90°:** zona verde claro cercana (te ven en cualquier postura) y verde oscuro lejana (tumbado eres invisible). Muros, vehículos, árboles y arbustos densos lo cortan.
+- **Alertas:** naranja = oyó un ruido · azul = vio algo raro (un cuerpo) · rojo = te ha descubierto y da la alarma.
+- **Ruido:** andar/arrastrarse 0 · cuchillo/puñetazo ≈4 m · correr ≈7 m · señuelo ≈12 m · pistola ≈26 m · rifle ≈36 m · explosión: todo el complejo.
+- **Enemigos:** soldados (recogen cebos), sargentos (fuego rápido, no se distraen en alerta), oficiales (inmunes a cebos, descubren disfraces con la barra azul) y francotiradores en torre (cono largo y estrecho, disparan sin aviso).
+- **Cuerpos:** cualquier cuerpo a la vista provoca la alarma del sector; escóndelos en arbustos o edificios. El puñetazo deja inconsciente ~28 s: átalo con una cuerda.
+- **Salud:** a 0 el comando queda moribundo 15 s; un botiquín lo salva.
+- **Objetivos:** principal (volar el depósito y llegar a la extracción) y opcional (documentos del oficial). Valoración final de 5 estrellas.
 
 ## Apartado visual
 - Vista isométrica 3D (cámara ortográfica a ~30°, como Commandos 2) con Three.js.
@@ -52,5 +60,6 @@ Se regeneran con `python3 tools/build_textures.py` (requiere Pillow e Internet).
 ## Estructura
 - `js/util.js` utilidades · `js/textures.js` ruido y color · `js/level.js` mapa, LOS, A*
 - `js/entities.js` comandos e IA enemiga · `js/models.js` materiales y modelos 3D · `js/render3d.js` escena, cámara, partículas
-- `js/hudart.js` iconos y retratos · `js/audio.js` sonido · `js/main.js` bucle, entrada, interfaz, guardado
+- `js/items.js` inventario y objetos · `js/input.js` controles · `js/hud.js` interfaz, mochila, mapa táctico
+- `js/hudart.js` iconos y retratos · `js/audio.js` sonido · `js/main.js` reglas, bucle, guardado
 - `vendor/three.min.js` Three.js r147 (licencia MIT) · `assets/textures.js` texturas CC0

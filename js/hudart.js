@@ -78,6 +78,65 @@ const Sprites = {
         x.strokeStyle = ink; x.lineWidth = 5;
         x.beginPath(); x.moveTo(26, 19); x.lineTo(20, 29); x.lineTo(30, 33); x.lineTo(28, 42); x.moveTo(20, 29); x.lineTo(14, 40); x.moveTo(25, 22); x.lineTo(34, 27); x.stroke();
         break;
+      case 'rope':
+        x.strokeStyle = '#c8a86a'; x.lineWidth = 4;
+        for (let i = 0; i < 3; i++) { x.beginPath(); x.ellipse(24, 24, 15 - i * 4, 11 - i * 3, 0.3, 0, 7); x.stroke(); }
+        x.beginPath(); x.moveTo(36, 30); x.quadraticCurveTo(44, 40, 38, 44); x.stroke();
+        break;
+      case 'medkit':
+        x.fillStyle = '#e8e2d0'; this.rr(x, 6, 12, 36, 28, 4); x.fill(); x.strokeStyle = dk; x.lineWidth = 2; x.stroke();
+        x.fillStyle = '#c0281c'; x.fillRect(20, 16, 8, 20); x.fillRect(14, 22, 20, 8);
+        x.fillStyle = '#7a6a50'; x.fillRect(18, 8, 12, 5);
+        break;
+      case 'ration':
+        x.fillStyle = '#7a6a3a'; this.rr(x, 6, 16, 36, 20, 3); x.fill();
+        x.fillStyle = '#d8c890'; x.fillRect(10, 20, 28, 12); x.fillStyle = '#5a4a2a'; x.font = 'bold 8px monospace'; x.fillText('K-RAT', 12, 29);
+        break;
+      case 'cigs':
+        x.fillStyle = '#e8e2d0'; x.fillRect(12, 12, 24, 28); x.fillStyle = '#b8352a'; x.fillRect(12, 12, 24, 10);
+        x.fillStyle = '#f0e8d8'; for (let i = 0; i < 3; i++) x.fillRect(15 + i * 6, 6, 4, 8); x.fillStyle = '#d88a40'; for (let i = 0; i < 3; i++) x.fillRect(15 + i * 6, 6, 4, 3);
+        break;
+      case 'wine':
+        x.fillStyle = '#2f5a2a'; this.rr(x, 16, 18, 16, 26, 4); x.fill(); x.fillRect(21, 6, 6, 14);
+        x.fillStyle = '#e8dcb0'; x.fillRect(18, 26, 12, 10); x.fillStyle = '#7a1a2a'; x.fillRect(21, 4, 6, 4);
+        break;
+      case 'pistol':
+        x.fillStyle = '#2a2a2a'; x.fillRect(8, 16, 30, 9); x.fillRect(38, 17, 4, 4);
+        x.fillStyle = '#5a3a22'; x.save(); x.translate(14, 24); x.rotate(0.3); x.fillRect(0, 0, 9, 18); x.restore();
+        x.strokeStyle = '#2a2a2a'; x.lineWidth = 2; x.beginPath(); x.arc(24, 28, 4, 0, Math.PI); x.stroke();
+        break;
+      case 'cutters':
+        x.strokeStyle = '#9aa0a4'; x.lineWidth = 4; x.beginPath(); x.moveTo(10, 10); x.lineTo(28, 28); x.moveTo(26, 10); x.lineTo(14, 26); x.stroke();
+        x.strokeStyle = '#b8352a'; x.lineWidth = 6; x.beginPath(); x.moveTo(28, 28); x.lineTo(40, 42); x.moveTo(20, 28); x.lineTo(24, 44); x.stroke();
+        break;
+      case 'ammo':
+        for (let i = 0; i < 3; i++) { x.fillStyle = '#c8a040'; x.fillRect(12 + i * 9, 18, 6, 22); x.fillStyle = '#a07030'; x.beginPath(); x.moveTo(12 + i * 9, 18); x.lineTo(15 + i * 9, 8); x.lineTo(18 + i * 9, 18); x.fill(); }
+        break;
+      case 'docs':
+        x.fillStyle = '#d8cca0'; x.fillRect(10, 8, 28, 34); x.fillStyle = '#e8dcb0'; x.fillRect(14, 12, 28, 34);
+        x.fillStyle = '#8a2a1a'; x.font = 'bold 7px monospace'; x.fillText('GEHEIM', 17, 22);
+        x.fillStyle = '#5a4a3a'; for (let i = 0; i < 4; i++) x.fillRect(17, 27 + i * 4, 20, 1.5);
+        break;
+      case 'punch':
+        x.fillStyle = '#d9ab84'; this.rr(x, 12, 14, 24, 20, 6); x.fill(); x.strokeStyle = dk; x.lineWidth = 2; x.stroke();
+        x.beginPath(); for (let i = 1; i < 4; i++) { x.moveTo(12 + i * 6, 14); x.lineTo(12 + i * 6, 22); } x.stroke();
+        x.fillStyle = '#4f6a32'; x.fillRect(16, 34, 16, 8);
+        x.strokeStyle = ink; x.lineWidth = 2; x.beginPath(); x.moveTo(40, 10); x.lineTo(44, 6); x.moveTo(41, 18); x.lineTo(46, 18); x.stroke();
+        break;
+      case 'talk':
+        x.fillStyle = ink; this.rr(x, 6, 8, 30, 20, 8); x.fill(); x.beginPath(); x.moveTo(14, 27); x.lineTo(10, 36); x.lineTo(22, 27); x.fill();
+        x.fillStyle = '#e8dcb0'; this.rr(x, 20, 22, 22, 16, 7); x.fill();
+        x.fillStyle = dk; for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(14 + i * 7, 18, 2, 0, 7); x.fill(); }
+        break;
+      case 'prone':
+        x.fillStyle = ink; x.beginPath(); x.arc(38, 30, 5, 0, 7); x.fill();
+        x.strokeStyle = ink; x.lineWidth = 5; x.beginPath(); x.moveTo(33, 32); x.lineTo(12, 34); x.moveTo(26, 33); x.lineTo(40, 40); x.moveTo(12, 34); x.lineTo(5, 38); x.stroke();
+        x.fillStyle = '#6a5a3a'; x.fillRect(4, 40, 42, 3);
+        break;
+      case 'cover':
+        x.strokeStyle = '#ffb340'; x.lineWidth = 3; x.beginPath(); x.arc(24, 24, 13, 0, 7); x.moveTo(24, 5); x.lineTo(24, 15); x.moveTo(24, 33); x.lineTo(24, 43); x.moveTo(5, 24); x.lineTo(15, 24); x.moveTo(33, 24); x.lineTo(43, 24); x.stroke();
+        x.fillStyle = '#ffb340'; x.beginPath(); x.arc(24, 24, 3, 0, 7); x.fill();
+        break;
       case 'eye':
         x.strokeStyle = ink; x.lineWidth = 3; x.beginPath(); x.moveTo(6, 24); x.quadraticCurveTo(24, 6, 42, 24); x.quadraticCurveTo(24, 42, 6, 24); x.stroke();
         x.fillStyle = ink; x.beginPath(); x.arc(24, 24, 6, 0, 7); x.fill();

@@ -13,7 +13,8 @@ const Level = {
   buildings: [], props: [], trees: [], border: [],
   depot: { x: 57.5, y: 31.5, destroyed: false },
   exit: { x0: 2, y0: 2, x1: 7, y1: 7 },
-  startPositions: [[3.5, 39.5], [5.5, 39.5], [3.5, 41.5], [5.5, 41.5]],
+  startPositions: [[2.5, 39.5], [4.5, 39.5], [2.5, 41.5], [4.5, 41.5]],
+  loot: [],
 
   // Rejilla lógica:
   //  .  transitable   T  arbusto (esconde)   P  árbol (bloquea)    #  pared
@@ -31,6 +32,12 @@ const Level = {
     const setF = (x, y, c) => { if (inb(x, y)) f[y][x] = c; };
     this.depot.destroyed = false;
     this.buildings = []; this.props = []; this.trees = []; this.border = [];
+    // objetos registrables con la acción Examinar (W)
+    this.loot = [
+      { name: 'Escritorio del oficial', x: 55.5, y: 13.6, items: [['docs', 1]], secondary: true },
+      { name: 'Caja de suministros', x: 48.5, y: 32.0, items: [['grenade', 2], ['medkit', 3]] },
+      { name: 'Arcón de la granja', x: 11.6, y: 11.6, items: [['rope', 2], ['wine', 1]] }
+    ];
 
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
       if (Noise.fbm(x * 0.13 + 5, y * 0.13 + 9, 3) > 0.6) f[y][x] = 'd';
@@ -172,20 +179,25 @@ const Level = {
   inExit(x, y) { const e = this.exit; return x >= e.x0 && x <= e.x1 + 1 && y >= e.y0 && y <= e.y1 + 1; },
   buildingAt(x, y) { return this.buildings.find(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) || null; },
 
+  // Línea de visión: la cortan muros, vehículos, árboles y arbustos densos
+  // (el arbusto en el que está el observador o el observado no cuenta).
   los(x0, y0, x1, y1) {
-    const d = Math.hypot(x1 - x0, y1 - y0);
-    const n = Math.ceil(d / 0.2);
+    const d = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(d / 0.2);
+    const sx = Math.floor(x0), sy = Math.floor(y0), ex = Math.floor(x1), ey = Math.floor(y1);
     for (let i = 1; i < n; i++) {
-      const t = i / n;
-      if (this.opaque(Math.floor(x0 + (x1 - x0) * t), Math.floor(y0 + (y1 - y0) * t))) return false;
+      const t = i / n, tx = Math.floor(x0 + (x1 - x0) * t), ty = Math.floor(y0 + (y1 - y0) * t);
+      if (this.opaque(tx, ty)) return false;
+      if (this.at(tx, ty) === 'T' && !(tx === sx && ty === sy) && !(tx === ex && ty === ey)) return false;
     }
     return true;
   },
 
   rayLength(x, y, ang, max) {
-    const dx = Math.cos(ang), dy = Math.sin(ang);
+    const dx = Math.cos(ang), dy = Math.sin(ang), sx = Math.floor(x), sy = Math.floor(y);
     for (let d = 0.15; d < max; d += 0.15) {
-      if (this.opaque(Math.floor(x + dx * d), Math.floor(y + dy * d))) return d;
+      const tx = Math.floor(x + dx * d), ty = Math.floor(y + dy * d);
+      if (this.opaque(tx, ty)) return d;
+      if (this.at(tx, ty) === 'T' && !(tx === sx && ty === sy)) return d + 0.5;
     }
     return max;
   },

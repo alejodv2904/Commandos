@@ -450,21 +450,21 @@ const Props = {
       case 'tower': {
         const Hp = 3.2, s = 0.12;
         for (const [a, c] of [[x0 + s, z0 + s], [x1 - s, z0 + s], [x0 + s, z1 - s], [x1 - s, z1 - s]])
-          B.box('post', a - 0.07, 0, c - 0.07, a + 0.07, Hp + 1.2, c + 0.07);
+          B.box('post', a - 0.07, 0, c - 0.07, a + 0.07, Hp + 1.75, c + 0.07);
         for (const zz of [z0 + s, z1 - s]) {
           const g = new THREE.BoxGeometry(Math.hypot(x1 - x0, Hp), 0.07, 0.05).toNonIndexed();
           g.rotateZ(Math.atan2(Hp, x1 - x0 - 2 * s)); g.translate(cx, Hp / 2, zz);
           B.add('post', Geo.worldUV(g, 1));
         }
         B.box('floor', x0 - 0.15, Hp, z0 - 0.15, x1 + 0.15, Hp + 0.12, z1 + 0.15);
-        B.box('wood', x0 - 0.15, Hp + 0.12, z1 + 0.1, x1 + 0.15, Hp + 0.75, z1 + 0.15);
-        B.box('wood', x0 - 0.15, Hp + 0.12, z0 - 0.15, x0 - 0.1, Hp + 0.75, z1 + 0.15);
-        B.box('wood', x0 - 0.15, Hp + 0.12, z0 - 0.15, x1 + 0.15, Hp + 0.75, z0 - 0.1);
-        B.box('wood', x1 + 0.1, Hp + 0.12, z0 - 0.15, x1 + 0.15, Hp + 0.75, z1 + 0.15);
-        const yR = Hp + 1.2, a0 = x0 - 0.4, a1 = x1 + 0.4, c0 = z0 - 0.4, c1 = z1 + 0.4, ap = [cx, yR + 0.8, cz];
+        B.box('wood', x0 - 0.15, Hp + 0.12, z1 + 0.1, x1 + 0.15, Hp + 0.48, z1 + 0.15);
+        B.box('wood', x0 - 0.15, Hp + 0.12, z0 - 0.15, x0 - 0.1, Hp + 0.48, z1 + 0.15);
+        B.box('wood', x0 - 0.15, Hp + 0.12, z0 - 0.15, x1 + 0.15, Hp + 0.48, z0 - 0.1);
+        B.box('wood', x1 + 0.1, Hp + 0.12, z0 - 0.15, x1 + 0.15, Hp + 0.48, z1 + 0.15);
+        const yR = Hp + 1.75, a0 = x0 - 0.4, a1 = x1 + 0.4, c0 = z0 - 0.4, c1 = z1 + 0.4, ap = [cx, yR + 0.8, cz];
         B.add('metalRoof', Geo.tris([[[a0, yR, c0], [a1, yR, c0], ap], [[a1, yR, c0], [a1, yR, c1], ap], [[a1, yR, c1], [a0, yR, c1], ap], [[a0, yR, c1], [a0, yR, c0], ap]], 1.5));
-        B.box('rubber', x1 - 0.1, Hp + 0.75, z1 - 0.1, x1 + 0.2, Hp + 1.0, z1 + 0.2);
-        B.box('lamp', x1 + 0.2, Hp + 0.8, z1 - 0.05, x1 + 0.22, Hp + 0.95, z1 + 0.15);
+        B.box('rubber', x1 - 0.1, Hp + 0.48, z1 - 0.1, x1 + 0.2, Hp + 0.72, z1 + 0.2);
+        B.box('lamp', x1 + 0.2, Hp + 0.52, z1 - 0.05, x1 + 0.22, Hp + 0.67, z1 + 0.15);
         break;
       }
       case 'depot': {
@@ -592,6 +592,8 @@ const Veg = {
 // ---------------- SOLDADOS ----------------
 const SOLDIER_KIT = {
   soldier: { tunic: '#5f6650', pants: '#4b5040', boots: '#1d1b18', skin: '#d9ab84', hat: 'helmet', hatCol: '#4d5345', weapon: 'rifle' },
+  sergeant: { tunic: '#5a614b', pants: '#474c3c', boots: '#1d1b18', skin: '#d9ab84', hat: 'helmet', hatCol: '#4a5042', weapon: 'smg' },
+  esniper: { tunic: '#5f6650', pants: '#4b5040', boots: '#1d1b18', skin: '#d9ab84', hat: 'helmet', hatCol: '#5a5f4c', weapon: 'sniper' },
   officer: { tunic: '#6c7259', pants: '#3b3d36', boots: '#141312', skin: '#d9ab84', hat: 'cap', hatCol: '#5e6551', weapon: 'pistol' },
   beret: { tunic: '#4f6a32', pants: '#43552b', boots: '#2a2118', skin: '#d2a17a', hat: 'beret', hatCol: '#2e6a2a', weapon: 'knife' },
   sniper: { tunic: '#7d7148', pants: '#6a603e', boots: '#2e2418', skin: '#e0b38c', hat: 'fieldcap', hatCol: '#5e5535', weapon: 'sniper' },
@@ -674,8 +676,8 @@ const Soldier = {
         break;
     }
     // arma
-    if (K.weapon === 'rifle' || K.weapon === 'sniper') {
-      const rifle = new THREE.Group(), L = K.weapon === 'sniper' ? 0.75 : 0.62;
+    if (K.weapon === 'rifle' || K.weapon === 'sniper' || K.weapon === 'smg') {
+      const rifle = new THREE.Group(), L = K.weapon === 'sniper' ? 0.75 : K.weapon === 'smg' ? 0.42 : 0.62;
       rifle.add(mesh(new THREE.BoxGeometry(0.035, 0.05, L * 0.55), M('#5a3a22', true), 0, 0, -L * 0.15));
       rifle.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, L * 0.55, 6), M('#1a1a1a', true), 0, 0.01, L * 0.3).rotateX(Math.PI / 2));
       if (K.weapon === 'sniper') rifle.add(mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.16, 8), M('#111111', true), 0, 0.05, 0.05).rotateX(Math.PI / 2));
@@ -701,6 +703,15 @@ const Soldier = {
     if (s.lying) {
       P.pose.rotation.x = -Math.PI / 2; P.pose.position.y = 0.1;
       P.pose.rotation.z = s.side * 0.35;
+    } else if (s.prone) { // cuerpo a tierra: boca abajo, arrastrándose
+      P.pose.rotation.x = Math.PI / 2; P.pose.position.y = 0.13;
+      const c = s.moving ? Math.sin(s.anim * 2.4) : 0;
+      P.legL.rotation.set(c * 0.35, 0, 0.12); P.legR.rotation.set(-c * 0.35, 0, -0.12);
+      P.armL.rotation.set(-2.6 + c * 0.4, 0, 0.3); P.armR.rotation.set(-2.6 - c * 0.4, 0, -0.3);
+      P.body.position.y = 0;
+      if (P.rifle) { P.rifle.position.set(0, 0.62, -0.11); P.rifle.rotation.set(-0.1, 0, 0.3); }
+      P.carry.visible = false;
+      return;
     }
     const cr = s.crouch && !s.lying;
     if (cr) P.body.position.y = -0.17;
