@@ -168,13 +168,14 @@ const RANKS = {
   soldier:  { name: 'Soldado', range: 10, near: 4.5, half: Math.PI / 4, fireCd: 1.0, bait: ['patrol', 'investigate'], kind: 'soldier' },
   sergeant: { name: 'Sargento', range: 10, near: 4.5, half: Math.PI / 4, fireCd: 0.4, bait: ['patrol'], kind: 'sergeant', damage: 22 },
   officer:  { name: 'Oficial', range: 10, near: 4.5, half: Math.PI / 4, fireCd: 0.9, bait: [], kind: 'officer', spots: true },
+  gestapo:  { name: 'Gestapo', range: 10, near: 4.5, half: Math.PI / 4, fireCd: 0.8, bait: [], kind: 'gestapo', spots: true, gestapo: true },
   sniper:   { name: 'Francotirador', range: 16, near: 6, half: 0.24, fireCd: 1.6, bait: [], kind: 'esniper', instant: true, static: true, elev: 3.32 }
 };
 
 class Enemy {
   constructor(id, def) {
     this.id = id; this.rank = def.rank || 'soldier'; this.R = RANKS[this.rank];
-    this.officer = this.rank === 'officer';
+    this.officer = this.rank === 'officer' || this.rank === 'gestapo';
     this.x = def.x; this.y = def.y;
     this.patrol = def.patrol; this.sweep = def.sweep || 0.7;
     this.face = def.patrol[0].face || 0; this.moveAng = this.face; this.lookBase = this.face;
@@ -186,6 +187,7 @@ class Enemy {
     const r = mulberry32(id * 31 + 7), loot = [];
     if (r() < 0.45) loot.push(['cigs', 1]); if (r() < 0.25) loot.push(['wine', 1]); if (r() < 0.3) loot.push(['ration', 1]); if (r() < 0.3) loot.push(['ammo', 2]);
     if (this.rank === 'officer') loot.push(['medkit', 3], ['wine', 1]);
+    if (this.rank === 'gestapo') loot.push(['uniform', 1], ['ammo', 2]);
     if (this.rank === 'sergeant') loot.push(['ammo', 2], ['grenade', 1]);
     this.loot = loot;
   }
@@ -222,8 +224,10 @@ class Enemy {
     const near = d <= v.near;
     if (u.disguised) {
       if (!near) return null;
-      if (u.type === 'spy' && !this.R.spots) return null;
-      return { disguise: true, near };
+      // Espía: solo la Gestapo lo descubre si se queda más de 2 s en su zona cercana.
+      if (u.type === 'spy') return this.R.gestapo ? { disguise: true, near, time: 2 } : null;
+      // Otros comandos de uniforme: los oficiales los descubren al instante; los demás en 3,5 s.
+      return this.R.spots ? { rate: 60, near } : { disguise: true, near, time: 3.5 };
     }
     if (!near && u.prone) return null;            // zona lejana: no ve a quien va cuerpo a tierra
     let rate = near ? 4 : 1.1 + (1 - d / v.range) * 1.6;
@@ -232,15 +236,15 @@ class Enemy {
   }
 
   perceive(dt, G) {
-    let best = null, bestRate = 0, disg = null;
+    let best = null, bestRate = 0, disg = null, dTime = 3.5;
     for (const u of G.units) {
       const r = this.canSee(u); if (!r) continue;
-      if (r.disguise) { disg = u; continue; }
+      if (r.disguise) { disg = u; dTime = r.time; continue; }
       if (r.rate > bestRate) { best = u; bestRate = r.rate; }
     }
     // barra azul: el disfrazado se queda demasiado en la zona cercana
     if (disg && this.state !== 'alert') {
-      disg.scrutiny = Math.min(1, disg.scrutiny + dt / 3.5); disg.scrutinyT = 0.2;
+      disg.scrutiny = Math.min(1, disg.scrutiny + dt / dTime); disg.scrutinyT = 0.2;
       if (disg.scrutiny >= 1) { disg.disguised = false; disg.scrutiny = 0; G.toast('¡Han descubierto el disfraz!', true); G.raiseAlert(this, disg); }
     }
     this.seenNow = best;
@@ -408,5 +412,6 @@ const ENEMY_DEFS = [
   { x: 44.5, y: 18.5, patrol: [{ x: 44.5, y: 18.5, wait: 2 }, { x: 44.5, y: 25.5, wait: 2 }] },
   { x: 40.5, y: 28.5, patrol: [{ x: 40.5, y: 28.5, face: 1.57 }] },
   { x: 40.5, y: 37.5, rank: 'sergeant', patrol: [{ x: 40.5, y: 37.5, wait: 2 }, { x: 58.5, y: 37.5, wait: 2 }] },
+  { x: 51.5, y: 19.5, rank: 'gestapo', patrol: [{ x: 51.5, y: 19.5, wait: 3 }, { x: 59.5, y: 19.5, wait: 3 }] },
   { x: 38, y: 38, rank: 'sniper', sweep: 0.6, patrol: [{ x: 38, y: 38, face: 3.14 }] }
 ];

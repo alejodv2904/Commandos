@@ -38,7 +38,7 @@ Arrastra un objeto sobre el retrato de un compañero cercano para dárselo.
 - **Cono de visión de 90°:** zona verde claro cercana (te ven en cualquier postura) y verde oscuro lejana (tumbado eres invisible). Muros, vehículos, árboles y arbustos densos lo cortan.
 - **Alertas:** naranja = oyó un ruido · azul = vio algo raro (un cuerpo) · rojo = te ha descubierto y da la alarma.
 - **Ruido:** andar/arrastrarse 0 · cuchillo/puñetazo ≈4 m · correr ≈7 m · señuelo ≈12 m · pistola ≈26 m · rifle ≈36 m · explosión: todo el complejo.
-- **Enemigos:** soldados (recogen cebos), sargentos (fuego rápido, no se distraen en alerta), oficiales (inmunes a cebos, descubren disfraces con la barra azul) y francotiradores en torre (cono largo y estrecho, disparan sin aviso).
+- **Enemigos:** soldados (recogen cebos), sargentos (fuego rápido, no se distraen en alerta), oficiales (inmunes a cebos, descubren al instante a cualquier comando de uniforme salvo al Espía), Gestapo (descubre al Espía si pasa más de 2 s en su zona cercana) y francotiradores en torre (cono largo y estrecho, disparan sin aviso).
 - **Cuerpos:** cualquier cuerpo a la vista provoca la alarma del sector; escóndelos en arbustos o edificios. El puñetazo deja inconsciente ~28 s: átalo con una cuerda.
 - **Salud:** a 0 el comando queda moribundo 15 s; un botiquín lo salva.
 - **Objetivos:** principal (volar el depósito y llegar a la extracción) y opcional (documentos del oficial). Valoración final de 5 estrellas.
@@ -48,7 +48,7 @@ Arrastra un objeto sobre el retrato de un compañero cercano para dárselo.
 - **Postprocesado de cine:** render HDR con MSAA, bloom en fuego y destellos, tonemapping ACES, gradación de color cálida, desenfoque «tilt-shift» de maqueta, viñeta y grano.
 - **Vegetación real:** copas de árbol hechas con racimos de hojas fotográficas (sombras moteadas), pinos con ramas reales y miles de matas de hierba 3D instanciadas que se mueven con el viento.
 - **Suelo:** mezcla de texturas fotográficas a 1024 px con relieve, oclusión ambiental precalculada junto a muros, árboles y objetos, y sombras de nubes en movimiento.
-- **Soldados animados:** esqueleto y animaciones capturadas (reposo, andar, correr) con uniformes de la época construidos por piezas: guerrera, cinturón, botas, casco alemán, boina, gorra de plato, sombrero o casco británico, fusil y mochila.
+- **Soldados animados:** malla deformable con esqueleto y animaciones capturadas (reposo, andar, correr). Cada personaje se viste por zonas del cuerpo con su uniforme: Boina Verde corpulento con camiseta de tirantes y boina; Francotirador delgado con chaqueta larga marrón, guantes y gorra de tela; Espía alto con gabardina beige y fedora (o uniforme de oficial); Zapador robusto con casco británico, polainas y mochila; soldados en gris campaña con casco alemán, sargentos con gorra de campaña y subfusil, oficiales con gorra de plato y botas de montar, Gestapo con gabardina negra y fedora, francotiradores con camuflaje moteado y capucha con red.
 - **Agua** con reflejo del cielo, orillas suaves y espuma; edificios con canalones, bajantes y escalones; partículas 3D y luces de explosión.
 - **Calidad adaptativa:** si el equipo no llega a unos 30 fps, se desactivan bloom y tilt-shift y se reduce la resolución.
 

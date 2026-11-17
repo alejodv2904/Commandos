@@ -631,16 +631,21 @@ const Veg = {
 };
 
 // ---------------- SOLDADOS ----------------
+// Uniformes (según la enciclopedia de personajes de Commandos 2). Zonas: tunic (pecho), arms, hands,
+// pants, boots (+ bootTop: altura de la caña), belt, collar, coat/coatCol (gabardina larga), gaiters, camo, scale [ancho, alto, fondo]
 const SOLDIER_KIT = {
-  soldier: { tunic: '#5f6650', pants: '#4b5040', boots: '#1d1b18', skin: '#d9ab84', hat: 'helmet', hatCol: '#4d5345', weapon: 'rifle' },
-  sergeant: { tunic: '#5a614b', pants: '#474c3c', boots: '#1d1b18', skin: '#d9ab84', hat: 'helmet', hatCol: '#4a5042', weapon: 'smg' },
-  esniper: { tunic: '#5f6650', pants: '#4b5040', boots: '#1d1b18', skin: '#d9ab84', hat: 'helmet', hatCol: '#5a5f4c', weapon: 'sniper' },
-  officer: { tunic: '#6c7259', pants: '#3b3d36', boots: '#141312', skin: '#d9ab84', hat: 'cap', hatCol: '#5e6551', weapon: 'pistol' },
-  beret: { tunic: '#4f6a32', pants: '#43552b', boots: '#2a2118', skin: '#d2a17a', hat: 'beret', hatCol: '#2e6a2a', weapon: 'knife' },
-  sniper: { tunic: '#7d7148', pants: '#6a603e', boots: '#2e2418', skin: '#e0b38c', hat: 'fieldcap', hatCol: '#5e5535', weapon: 'sniper' },
-  spy: { tunic: '#2e3340', pants: '#292d37', boots: '#121212', skin: '#dcb08a', hat: 'fedora', hatCol: '#38383d', weapon: null },
-  spyDis: { tunic: '#6c7259', pants: '#3b3d36', boots: '#141312', skin: '#dcb08a', hat: 'cap', hatCol: '#5e6551', weapon: 'pistol', armband: true },
-  sapper: { tunic: '#6b6a44', pants: '#5a583a', boots: '#2a2118', skin: '#d8a982', hat: 'brodie', hatCol: '#5d5c3a', weapon: null, pack: '#4f4a30' }
+  // Fuerzas alemanas
+  soldier:  { tunic: '#5f604c', arms: '#5f604c', pants: '#585a47', boots: '#141311', bootTop: 0.27, belt: '#1a1916', skin: '#cf9f7c', hat: 'helmet', hatCol: '#4c4f42', weapon: 'rifle' },
+  sergeant: { tunic: '#5c5e4a', arms: '#5c5e4a', pants: '#555744', boots: '#141311', bootTop: 0.27, belt: '#1a1916', collar: '#b6b6aa', skin: '#cf9f7c', hat: 'sidecap', hatCol: '#566050', weapon: 'smg' },
+  officer:  { tunic: '#6a6b55', arms: '#6a6b55', pants: '#8a8268', boots: '#0d0c0b', bootTop: 0.31, belt: '#2a1d12', collar: '#c9c2a2', skin: '#d6a882', hat: 'cap', hatCol: '#5d6551', weapon: 'pistol', scale: [0.97, 1.03, 0.97] },
+  gestapo:  { tunic: '#19191b', arms: '#19191b', coat: true, coatCol: '#1b1b1e', pants: '#141416', boots: '#0b0b0b', bootTop: 0.12, belt: '#0e0e10', collar: '#1b1b1e', skin: '#d6a882', hat: 'fedora', hatCol: '#121214', weapon: 'pistol', scale: [1.0, 1.04, 1.0] },
+  esniper:  { tunic: '#45573a', arms: '#45573a', pants: '#3e4f36', boots: '#171511', bootTop: 0.2, belt: '#22201a', camo: ['#2e3b25', '#6a7346', '#3e5332'], skin: '#cf9f7c', hat: 'hood', hatCol: '#40523a', weapon: 'sniper' },
+  // Comandos
+  beret:    { tunic: '#6a6f45', arms: 'skin', pants: '#4c5832', boots: '#231c14', bootTop: 0.16, belt: '#4a3016', beltW: 0.026, skin: '#c48c6a', hat: 'beret', hatCol: '#2b6a2a', weapon: null, scale: [1.18, 1.1, 1.15] },
+  sniper:   { tunic: '#5d4a33', arms: '#5d4a33', hands: '#3a2616', coat: true, coatCol: '#5d4a33', pants: '#6a5a3d', boots: '#22170e', bootTop: 0.3, belt: '#2c1f13', skin: '#e0b48e', hat: 'flatcap', hatCol: '#4a3a26', weapon: 'sniper', scale: [0.92, 1.02, 0.92] },
+  spy:      { tunic: '#86745a', arms: '#86745a', coat: true, coatCol: '#86745a', pants: '#272a33', boots: '#0f0f10', bootTop: 0.1, belt: '#6a6252', collar: '#e6e2d6', skin: '#dcb08a', hat: 'fedora', hatCol: '#38383d', weapon: null, shirt: '#e6e2d6', scale: [0.94, 1.05, 0.94] },
+  spyDis:   { tunic: '#6a6b55', arms: '#6a6b55', pants: '#8a8268', boots: '#0d0c0b', bootTop: 0.31, belt: '#2a1d12', collar: '#c9c2a2', skin: '#dcb08a', hat: 'cap', hatCol: '#5d6551', weapon: 'pistol', scale: [0.94, 1.05, 0.94] },
+  sapper:   { tunic: '#5d583a', arms: '#5d583a', pants: '#5a5638', boots: '#221b13', bootTop: 0.11, gaiters: '#8a7f5c', belt: '#3c3624', beltW: 0.03, skin: '#d8a982', hat: 'brodie', hatCol: '#59593a', weapon: null, pack: '#4c472e', scale: [1.07, 0.97, 1.07] }
 };
 
 const Soldier = {

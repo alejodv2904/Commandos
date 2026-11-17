@@ -4,9 +4,9 @@
 const PAL = {
   soldier: { tunic: '#5f6650', pants: '#4b5040', boots: '#1d1b18', belt: '#2a2620', skin: '#d9ab84', hat: 'helmet', hatCol: '#4d5345', weapon: 'rifle', pouches: true },
   officer: { tunic: '#6c7259', pants: '#3b3d36', boots: '#141312', belt: '#2a2018', skin: '#d9ab84', hat: 'cap', hatCol: '#5e6551', weapon: 'pistol' },
-  beret: { tunic: '#4f6a32', pants: '#43552b', boots: '#2a2118', belt: '#3b3220', skin: '#d2a17a', hat: 'beret', hatCol: '#2e6a2a', weapon: null, pouches: true },
-  sniper: { tunic: '#7d7148', pants: '#6a603e', boots: '#2e2418', belt: '#4a3c24', skin: '#e0b38c', hat: 'fieldcap', hatCol: '#5e5535', weapon: 'sniper' },
-  spy: { tunic: '#2e3340', pants: '#292d37', boots: '#121212', belt: '#1a1a1a', skin: '#dcb08a', hat: 'fedora', hatCol: '#38383d', weapon: null, shirt: '#e8e4d8' },
+  beret: { tunic: '#6a6f45', pants: '#43552b', boots: '#2a2118', belt: '#3b3220', skin: '#c48c6a', hat: 'beret', hatCol: '#2b6a2a', weapon: null, pouches: true },
+  sniper: { tunic: '#5d4a33', pants: '#6a603e', boots: '#2e2418', belt: '#4a3c24', skin: '#e0b38c', hat: 'fieldcap', hatCol: '#4a3a26', weapon: 'sniper' },
+  spy: { tunic: '#8c8471', pants: '#292d37', boots: '#121212', belt: '#1a1a1a', skin: '#dcb08a', hat: 'fedora', hatCol: '#38383d', weapon: null, shirt: '#e8e4d8' },
   spyDis: { tunic: '#6c7259', pants: '#3b3d36', boots: '#141312', belt: '#2a2018', skin: '#dcb08a', hat: 'cap', hatCol: '#5e6551', weapon: 'pistol', armband: true },
   sapper: { tunic: '#6b6a44', pants: '#5a583a', boots: '#2a2118', belt: '#3e3824', skin: '#d8a982', hat: 'brodie', hatCol: '#5d5c3a', weapon: null, pack: '#4f4a30' }
 };

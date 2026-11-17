@@ -196,7 +196,7 @@ const HUD = {
       <p class="small"><b>Verde claro (cerca):</b> te ven en cualquier postura. <b>Verde oscuro (lejos):</b> cuerpo a tierra eres invisible. Muros, vehículos, árboles y arbustos cortan el cono.</p>
       <p class="small"><b>Naranja:</b> oyó un ruido y va a investigar. <b>Azul:</b> vio algo raro (un cuerpo). <b>Rojo:</b> te ha descubierto y da la alarma.</p>
       <h4>RUIDO</h4><p class="small">Andar y arrastrarse: silencio. Cuchillo/puñetazo ≈4 m. Correr ≈7 m. Señuelo ≈12 m. Pistola ≈26 m, rifle ≈36 m. Explosiones: todo el complejo.</p>
-      <h4>ENEMIGOS</h4><p class="small"><b>Soldados</b> recogen cigarrillos y vino. <b>Sargentos</b> disparan más rápido y no se distraen si están alerta. <b>Oficiales</b> no caen en cebos y descubren al Espía disfrazado si se queda en su zona cercana (barra azul). <b>Francotiradores</b> en torres: cono largo y estrecho, disparan sin aviso.</p>
+      <h4>ENEMIGOS</h4><p class="small"><b>Soldados</b> recogen cigarrillos y vino. <b>Sargentos</b> disparan más rápido y no se distraen si están alerta. <b>Oficiales</b> no caen en cebos y descubren al instante a cualquier comando de uniforme salvo al Espía. La <b>Gestapo</b> (gabardina negra) descubre al Espía si pasa más de 2 s en su zona cercana (barra azul). <b>Francotiradores</b> en torres: cono largo y estrecho, disparan sin aviso.</p>
       <h4>CUERPOS</h4><p class="small">Un cuerpo a la vista provoca la alarma. Escóndelos en arbustos o dentro de edificios (Shift+clic). Un puñetazo deja inconsciente ~28 s: átalo con una cuerda.</p></div>
       </div>
       <button>${G.time > 0 ? 'Continuar' : 'Comenzar operación'}</button></div>`;
