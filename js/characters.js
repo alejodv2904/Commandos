@@ -47,13 +47,22 @@ const Chars = {
     const v = new THREE.Vector3(), N = pos.count, ys = new Float32Array(N), P = new Float32Array(N * 3);
     let minY = 1e9, maxY = -1e9;
     for (let i = 0; i < N; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(b.matrixWorld); ys[i] = v.y; P[i * 3] = v.x; P[i * 3 + 1] = v.y; P[i * 3 + 2] = v.z; minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y); }
-    this.zone = []; this.h = new Float32Array(N); this.bindPos = P; this.span = maxY - minY;
+    this.zone = []; this.dom = new Uint16Array(N); this.h = new Float32Array(N); this.bindPos = P; this.span = maxY - minY;
     for (let i = 0; i < N; i++) {
       const w = [sw.getX(i), sw.getY(i), sw.getZ(i), sw.getW(i)], s = [si.getX(i), si.getY(i), si.getZ(i), si.getW(i)];
       let k = 0; for (let j = 1; j < 4; j++) if (w[j] > w[k]) k = j;
       this.zone.push(zoneOf(bones[s[k]].name));
+      this.dom[i] = s[k];
       this.h[i] = (ys[i] - minY) / (maxY - minY);
     }
+    // posición y eje (hacia el primer hueso hijo) de cada hueso en reposo, en el mundo
+    this.bonePos = bones.map(bn => bn.getWorldPosition(new THREE.Vector3()));
+    this.boneAxis = bones.map((bn, j) => {
+      const ch = bn.children.find(c => c.isBone);
+      if (!ch) return new THREE.Vector3(0, 1, 0);
+      return ch.getWorldPosition(new THREE.Vector3()).sub(this.bonePos[j]).normalize();
+    });
+    this.bones = bones.map(bn => bn.name.replace(/^mixamorig:?/, ''));
   },
 
   // Textura de detalle: la original en escala de grises y aclarada (pliegues y costuras como tela)
@@ -99,7 +108,27 @@ const Chars = {
       a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    this.reshape(g, K.build || {});
     return (this.geo[kind] = g);
+  },
+
+  // Complexión: engorda o adelgaza cada zona alrededor del eje de su hueso (perpendicular a él),
+  // así las articulaciones siguen girando bien. La cabeza se escala entera.
+  reshape(g, F) {
+    const zf = { chest: F.chest, belly: F.belly, hips: F.hips, upperArm: F.arms, foreArm: F.arms && 1 + (F.arms - 1) * 0.8, hand: F.hands,
+      thigh: F.legs, shin: F.legs && 1 + (F.legs - 1) * 0.8, foot: F.feet, head: F.head };
+    if (!Object.values(zf).some(v => v && v !== 1)) return;
+    const pos = g.attributes.position, inv = this.body.matrixWorld.clone().invert(), P = this.bindPos, v = new THREE.Vector3(), d = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      const z = this.zone[i], f = zf[z]; if (!f || f === 1) continue;
+      const b = this.dom[i], o = this.bonePos[b], ax = this.boneAxis[b];
+      v.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]); d.copy(v).sub(o);
+      if (z === 'head') d.multiplyScalar(f);
+      else { const along = d.dot(ax); d.sub(ax.clone().multiplyScalar(along)).multiplyScalar(f).add(ax.clone().multiplyScalar(along)); }
+      v.copy(o).add(d).applyMatrix4(inv);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true; g.computeBoundingSphere();
   },
 
   bodyMat() {
@@ -198,7 +227,9 @@ const Chars = {
     const obj = THREE.SkeletonUtils.clone(this.gltf.scene);
     const root = new THREE.Group(), tilt = new THREE.Group(), turn = new THREE.Group();
     root.add(tilt); tilt.add(turn); turn.add(obj);
-    const sc = K.scale || [1, 1, 1]; obj.scale.set(this.scale * sc[0], this.scale * sc[1], this.scale * sc[2]);
+    // estatura relativa al soldado (1,78 m), exagerada ×1,8 para que se lea con la cámara lejana
+    const H = 1 + ((K.height || 1.78) / 1.78 - 1) * 1.8, Wd = K.width || 1;
+    const sc = [H * Wd, H, H * Wd]; obj.scale.set(this.scale * sc[0], this.scale * sc[1], this.scale * sc[2]);
     turn.rotation.y = this.flip ? Math.PI : 0;
     const B = {}, skinned = [];
     obj.traverse(o => {
@@ -213,19 +244,26 @@ const Chars = {
     root.updateMatrixWorld(true);
     const m = { root, tilt, obj, bones: B, kind, cur: null, ghosts: [] };
     m.rest = {}; for (const k in B) m.rest[k] = B[k].position.clone();
+    // anchura de hombros y separación de caderas: se desplazan los huesos (y la piel que mueven)
+    const F = K.build || {}; m.boneScale = {};
+    if (F.shoulders) for (const n of ['LeftShoulder', 'RightShoulder']) m.boneScale[n] = F.shoulders;
+    if (F.hipW) for (const n of ['LeftUpLeg', 'RightUpLeg']) m.boneScale[n] = F.hipW;
+    if (F.neck) m.boneScale.Neck = F.neck;
+    for (const n in m.boneScale) if (B[n]) B[n].position.copy(m.rest[n]).multiplyScalar(m.boneScale[n]);
     const fwdW = new THREE.Vector3(0, 0, this.flip ? -1 : 1);
     if (B.Head) { // tocado sobre la cabeza
       const { h } = this.holder(B.Head, fwdW);
-      const hat = this.headgear(kind); hat.position.y = 0.155; h.add(hat);
+      const hf = (F.head || 1) * H; const hat = this.headgear(kind); hat.scale.set(hf * Wd, hf, hf * Wd); hat.position.y = 0.155 * hf; h.add(hat);
       if (ghostMat) { const gh = hat.clone(); gh.traverse(o => { if (o.isMesh) { o.material = ghostMat; o.renderOrder = 999; } }); gh.visible = false; h.add(gh); m.ghosts.push(gh); }
     }
     if (B.Spine2) { // arma a la espalda, mochila y cuerpo cargado
       const w = this.weapon(kind);
-      if (w) { const { h } = this.holder(B.Spine2, fwdW); w.rotation.set(0.12, 0, 0.72); w.position.set(0, 0.06, -0.16); h.add(w); }
+      const cf = (F.chest || 1) * Wd;
+      if (w) { const { h } = this.holder(B.Spine2, fwdW); w.rotation.set(0.12, 0, 0.72); w.scale.setScalar(H); w.position.set(0, 0.06 * H, -0.16 * cf); h.add(w); }
       if (K.pack) {
         const { h } = this.holder(B.Spine2, fwdW);
-        const pk = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.15), this.mat(kind, 'pack')); pk.position.set(0, 0.02, -0.19); pk.castShadow = true; h.add(pk);
-        const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), this.mat(kind, '#5d5640')); roll.rotation.z = Math.PI / 2; roll.position.set(0, 0.2, -0.19); h.add(roll);
+        const pk = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.15), this.mat(kind, 'pack')); pk.scale.setScalar(H); pk.position.set(0, 0.02 * H, -0.19 * cf); pk.castShadow = true; h.add(pk);
+        const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), this.mat(kind, '#5d5640')); roll.rotation.z = Math.PI / 2; roll.scale.setScalar(H); roll.position.set(0, 0.2 * H, -0.19 * cf); h.add(roll);
       }
       const { h } = this.holder(B.Spine2, fwdW), c = new THREE.Group();
       const b1 = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.45, 4, 8), this.mat(kind, '#5c6452')); b1.rotation.z = Math.PI / 2; c.add(b1);
@@ -272,6 +310,7 @@ const Chars = {
       else this.play(m, 'walk', clamp(s.speed / 1.35, 0.6, 2.0));
     } else this.play(m, 'idle', 1);
     m.mixer.update(dt);
+    for (const n in m.boneScale) if (B[n]) B[n].position.copy(m.rest[n]).multiplyScalar(m.boneScale[n]);
     const bend = (name, x, y, z) => { const b = B[name]; if (b) { if (x) b.rotateX(x); if (y) b.rotateY(y); if (z) b.rotateZ(z); } };
     const crouch = s.crouch || ['plant', 'knife', 'syringe'].includes(s.busy);
     if (crouch && !s.lying && !s.prone && B.Hips) {
