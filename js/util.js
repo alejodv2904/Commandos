@@ -1,7 +1,7 @@
 'use strict';
 // Utilidades generales
 
-const TILE = 40; // píxeles por casilla
+const TILE = 48; // píxeles por casilla
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);

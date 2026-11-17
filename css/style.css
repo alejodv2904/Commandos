@@ -1,45 +1,86 @@
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:#0c0f0a;font-family:"Trebuchet MS","Segoe UI",sans-serif;color:#e8e2cc;user-select:none}
-#game{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
-#objectives{position:absolute;left:12px;top:12px;background:rgba(18,22,14,.82);border:1px solid #5a6a3c;border-radius:4px;padding:10px 14px;font-size:13px;line-height:1.6;min-width:290px}
-#objectives h3{font-size:12px;letter-spacing:.12em;color:#b9c77f;margin-bottom:4px}
-#objectives .done{color:#8fd16a;text-decoration:line-through}
-#objectives .meta{color:#aaa58f;font-size:12px;margin-top:4px}
-#objectives .bomb{color:#ff9a4d;font-weight:bold}
-#minimap-wrap{position:absolute;right:12px;top:12px;background:rgba(18,22,14,.85);border:2px solid #5a6a3c;border-radius:3px;padding:3px}
-#mini{display:block;cursor:pointer}
-#toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);background:rgba(0,0,0,.78);border:1px solid #888;padding:8px 18px;border-radius:4px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+html,body{width:100%;height:100%;overflow:hidden;background:#11160c;font-family:"Special Elite","Courier New",monospace;color:#eadfbe;user-select:none}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:none}
+
+/* Notas de objetivos, como papel clavado */
+#objectives{position:absolute;left:14px;top:14px;padding:12px 16px 10px;min-width:300px;color:#2b2214;font-size:13.5px;line-height:1.55;
+  background:linear-gradient(175deg,#efe3c2,#dccb9f);box-shadow:3px 4px 10px rgba(0,0,0,.55);transform:rotate(-.6deg);border-radius:2px}
+#objectives:before{content:"";position:absolute;top:-6px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#e66,#811);box-shadow:1px 2px 3px rgba(0,0,0,.5)}
+#objectives h3{font-family:"Black Ops One",Impact,sans-serif;font-weight:normal;font-size:14px;letter-spacing:.15em;color:#6b1d12;border-bottom:1px solid rgba(80,50,20,.35);margin-bottom:4px}
+#objectives .done{color:#4a6b2a;text-decoration:line-through}
+#objectives .bomb{color:#a3290f;font-weight:bold}
+#objectives .meta{color:#6e5d3c;font-size:12px;margin-top:4px}
+
+/* Minimapa con marco de latón */
+#minimap-wrap{position:absolute;right:14px;top:14px;padding:6px;border-radius:4px;
+  background:linear-gradient(145deg,#8a7442,#4d3f20);box-shadow:0 4px 12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,240,190,.4)}
+#mini{display:block;cursor:crosshair;border:2px solid #2a2212}
+
+#toast{position:absolute;left:50%;top:18px;transform:translateX(-50%);background:rgba(28,24,14,.9);border:1px solid #8a7442;padding:8px 20px;border-radius:3px;
+  font-size:15px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.5)}
 #toast.show{opacity:1}
-#toast.bad{border-color:#e05a4a;color:#ffb3a8}
-#hud{position:absolute;left:0;right:0;bottom:0;height:96px;background:linear-gradient(#1b2114,#10140c);border-top:2px solid #5a6a3c;display:flex;align-items:stretch;gap:14px;padding:8px 14px}
-#portraits{display:flex;gap:8px}
-.card{width:150px;background:#232b19;border:2px solid #3d4a2a;border-radius:4px;padding:6px 8px;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:3px}
-.card:hover{border-color:#8da25a}
-.card.sel{border-color:#e6d36a;background:#2d3720}
-.card.dead{opacity:.35;pointer-events:none}
-.card .nm{font-size:13px;font-weight:bold}
-.card .fk{position:absolute;right:6px;top:4px;font-size:10px;color:#9aa57a}
-.card .st{font-size:11px;color:#b8b49a}
-.pips{display:flex;gap:3px}
-.pip{width:16px;height:6px;background:#3a2020}
-.pip.on{background:#d1473a}
-.sw{width:100%;height:5px;margin-bottom:2px}
-#actions{display:flex;gap:8px;align-items:stretch}
-.act{min-width:96px;background:#232b19;border:2px solid #3d4a2a;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:13px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:2px}
-.act:hover{border-color:#8da25a}
-.act.on{border-color:#ff9a4d;background:#3a2b19}
-.act small{color:#9aa57a;font-size:10px}
-#hint{flex:1;font-size:12px;color:#aaa58f;display:flex;align-items:center;line-height:1.5;padding-left:10px}
-#overlay{position:absolute;inset:0;background:rgba(6,8,4,.82);display:none;align-items:center;justify-content:center;z-index:10}
+#toast.bad{border-color:#c0392b;color:#ffc2b0}
+
+/* HUD inferior */
+#hud{position:absolute;left:0;right:0;bottom:0;height:150px;display:flex;gap:10px;padding:8px 10px;align-items:stretch;cursor:default;
+  background:linear-gradient(#2a2416,#17130b);border-top:3px solid #5d4b28;box-shadow:0 -4px 14px rgba(0,0,0,.6)}
+.leather{position:relative;border-radius:6px;
+  background:radial-gradient(ellipse at 30% 20%,rgba(255,220,160,.08),transparent 60%),
+             repeating-linear-gradient(45deg,rgba(0,0,0,.05) 0 2px,transparent 2px 5px),#4a3a22;
+  box-shadow:inset 0 0 0 2px #2a2012,inset 0 0 0 4px rgba(150,120,70,.25),0 2px 6px rgba(0,0,0,.5)}
+.leather:after{content:"";position:absolute;inset:6px;border:1px dashed rgba(220,190,130,.28);border-radius:4px;pointer-events:none}
+#main-panel{display:flex;gap:12px;padding:8px 12px;align-items:center}
+#portrait-frame{width:118px;height:134px;padding:3px;border-radius:3px;background:linear-gradient(145deg,#a58a4e,#5a4721);box-shadow:inset 0 0 4px rgba(0,0,0,.6)}
+#portrait{display:block;width:112px;height:128px}
+#unit-info{width:150px;display:flex;flex-direction:column;gap:8px}
+#unit-name{font-family:"Black Ops One",Impact,sans-serif;font-size:17px;color:#f2dc9a;letter-spacing:.05em;text-shadow:1px 1px 0 #000}
+#unit-hp{display:flex;gap:4px}
+#unit-hp i{display:block;width:26px;height:10px;background:#3a1612;border:1px solid #000;border-radius:2px}
+#unit-hp i.on{background:linear-gradient(#7fd85e,#3f8a2a)}
+#unit-state{font-size:12.5px;color:#d6c79c}
+#backpack{display:flex;flex-direction:column;gap:4px}
+.bp-title{font-family:"Black Ops One",Impact,sans-serif;font-size:11px;letter-spacing:.25em;color:#c8b07a}
+#slots{display:flex;gap:6px}
+.slot{position:relative;width:58px;height:58px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 40% 35%,#3e3424,#1f190f);border:2px solid #6b5630;box-shadow:inset 0 2px 6px rgba(0,0,0,.7)}
+.slot:hover{border-color:#d8b860}
+.slot.on{border-color:#ff9a3d;box-shadow:inset 0 0 10px rgba(255,140,40,.5),0 0 8px rgba(255,140,40,.5)}
+.slot.empty{opacity:.4}
+.slot .key{position:absolute;left:3px;top:1px;font-size:10px;color:#c8b07a}
+.slot .badge{position:absolute;right:3px;bottom:1px;font-size:12px;color:#fff;text-shadow:1px 1px 0 #000}
+#squad{display:flex;gap:8px;padding:10px 12px;align-items:center}
+.sq{position:relative;width:68px;cursor:pointer;padding:2px;border-radius:3px;background:#2a2012;border:2px solid #5d4b28}
+.sq canvas{display:block;width:64px;height:70px}
+.sq.sel{border-color:#f0d060;box-shadow:0 0 8px rgba(240,208,96,.6)}
+.sq.dead{filter:grayscale(1) brightness(.4);pointer-events:none}
+.sq .fk{position:absolute;right:4px;top:2px;font-size:10px;color:#f2dc9a;text-shadow:1px 1px 0 #000}
+.sq-hp{height:6px;background:#3a1612;margin-top:2px}
+.sq-hp .fill{height:100%;background:linear-gradient(#7fd85e,#3f8a2a)}
+#hint{flex:1;padding:14px 18px;font-size:13.5px;line-height:1.6;color:#e2d4ac;display:flex;align-items:center;min-width:120px}
+#hint b{color:#f2dc9a;font-weight:normal;font-family:"Black Ops One",Impact,sans-serif;letter-spacing:.04em;margin-right:4px}
+
+/* Expediente */
+#overlay{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(20,16,8,.75),rgba(5,4,2,.92));display:none;align-items:center;justify-content:center;z-index:10}
 #overlay.show{display:flex}
-.panel{background:#1b2114;border:2px solid #6a7d42;border-radius:6px;padding:26px 34px;max-width:680px;max-height:90vh;overflow:auto;line-height:1.55}
-.panel h1{color:#e6d36a;font-size:28px;letter-spacing:.06em;margin-bottom:2px}
-.panel h2{color:#b9c77f;font-size:13px;letter-spacing:.14em;margin:0 0 14px}
-.panel h4{color:#b9c77f;margin:14px 0 4px;font-size:13px;letter-spacing:.1em}
-.panel table{border-collapse:collapse;font-size:13px;width:100%}
-.panel td{padding:2px 8px 2px 0;vertical-align:top}
-.panel td:first-child{color:#e6d36a;white-space:nowrap}
-.panel button{margin-top:18px;background:#4a5e2a;color:#fff;border:2px solid #8da25a;padding:10px 26px;font-size:15px;border-radius:4px;cursor:pointer;font-family:inherit}
-.panel button:hover{background:#5d7535}
-.panel.win h1{color:#8fd16a}
-.panel.lose h1{color:#e05a4a}
+.dossier{position:relative;max-width:820px;max-height:92vh;overflow:auto;padding:30px 40px 28px;color:#2b2214;line-height:1.5;
+  background:linear-gradient(170deg,#f0e4c4 0%,#e1d1a6 60%,#d5c08f 100%);box-shadow:0 10px 40px rgba(0,0,0,.8);border-radius:2px;transform:rotate(-.4deg)}
+.dossier:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 80% 90%,rgba(120,80,30,.18),transparent 50%),radial-gradient(ellipse at 10% 10%,rgba(120,80,30,.12),transparent 40%)}
+.dossier .hdr{font-size:11.5px;letter-spacing:.18em;color:#6e5d3c;border-bottom:2px solid #6e5d3c;padding-bottom:6px;margin-bottom:12px}
+.dossier h1{font-family:"Black Ops One",Impact,sans-serif;font-weight:normal;font-size:46px;letter-spacing:.06em;color:#3b2e14;line-height:1}
+.dossier h2{font-size:17px;color:#6b1d12;margin:4px 0 14px;font-weight:normal}
+.dossier h4{font-family:"Black Ops One",Impact,sans-serif;font-weight:normal;font-size:13px;letter-spacing:.18em;color:#6b1d12;margin:14px 0 4px}
+.dossier p{margin-bottom:8px;font-size:14px}
+.dossier .small{font-size:12.5px}
+.dossier .cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.dossier table{border-collapse:collapse;font-size:12.5px;width:100%}
+.dossier td{padding:2px 8px 2px 0;vertical-align:top;border-bottom:1px dotted rgba(80,60,30,.3)}
+.dossier td:first-child{color:#6b1d12;white-space:nowrap}
+.dossier table.stats{width:auto;font-size:15px;margin:10px 0}
+.dossier .stamp{position:absolute;right:34px;top:30px;transform:rotate(-12deg);font-family:"Black Ops One",Impact,sans-serif;font-size:26px;color:rgba(170,30,20,.75);
+  border:4px solid rgba(170,30,20,.75);padding:4px 12px;letter-spacing:.1em}
+.dossier.win .stamp{color:rgba(40,110,40,.8);border-color:rgba(40,110,40,.8)}
+.dossier button{margin-top:16px;background:linear-gradient(#5b6a34,#3b4620);color:#f2e6c0;border:2px solid #2a3014;padding:10px 26px;font-size:16px;border-radius:3px;cursor:pointer;
+  font-family:"Black Ops One",Impact,sans-serif;letter-spacing:.08em;box-shadow:0 3px 6px rgba(0,0,0,.4)}
+.dossier button:hover{background:linear-gradient(#6d7e40,#4a5828)}
+@media (max-width:1100px){#hint{display:none}}

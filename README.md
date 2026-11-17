@@ -18,6 +18,9 @@ Abre `index.html` en el navegador (o sirve la carpeta con `python3 -m http.serve
 | F1–F4 / Tab | Seleccionar comando |
 | WASD / flechas / bordes / clic central | Cámara; rueda = zoom |
 | F5 / F9 | Guardado / carga rápida |
+| C | Agacharse / levantarse |
+| V | Conos de visión: todos / solo los señalados |
+| M | Activar / desactivar sonido |
 | Esc / X | Cancelar acción / detener |
 
 ## Comandos
@@ -27,11 +30,20 @@ Abre `index.html` en el navegador (o sirve la carpeta con `python3 -m http.serve
 - **Zapador:** carga de tiempo y granadas (fuego amigo).
 
 ## Mecánicas
-- Conos de visión de los guardias, bloqueados por paredes; los arbustos esconden.
+- Conos de visión verdes de dos zonas, como en Commandos 2: en la zona clara solo ven a quien va de pie; en la oscura, también a los agachados. Paredes, árboles y vehículos bloquean la vista; los arbustos ocultan.
 - Sospecha progresiva (`?`) → alarma (`!`); el ruido y los cuerpos descubiertos atraen a las patrullas.
-- Los enemigos dormidos despiertan pasado un tiempo.
-- Búsqueda de caminos A* con suavizado, vista oblicua con profundidad por filas.
+- Edificios con interior: al entrar un comando, el tejado se retira y se ve el interior.
+- Siluetas de los comandos cuando quedan tapados por edificios o árboles.
+
+## Apartado visual (todo generado por código, sin imágenes)
+- Terreno pintado píxel a píxel con ruido: hierba, tierra, grava, caminos con rodadas, orillas, río animado y puentes.
+- Edificios con fachadas (entramado, ladrillo, madera, hormigón), ventanas con contraventanas y tejados a cuatro aguas de teja, pizarra o chapa.
+- Camiones, jeep, tiendas, torres de vigilancia, sacos terreros, cajas, bidones y depósito de combustible.
+- Sombras proyectadas, árboles con copa y balanceo, partículas (fuego, humo, restos, fogonazos), bengala de extracción.
+- Interfaz con retratos, mochila de acciones, cursor propio y expediente de misión.
+- Sonido sintetizado con Web Audio (disparos, explosiones, alarma, ambiente).
 
 ## Estructura
-- `js/util.js` utilidades · `js/level.js` mapa, LOS, A* · `js/entities.js` comandos e IA enemiga
-- `js/render.js` dibujado · `js/main.js` bucle, entrada, HUD, guardado, reglas
+- `js/util.js` utilidades · `js/textures.js` ruido y color · `js/level.js` mapa, LOS, A*
+- `js/entities.js` comandos e IA enemiga · `js/sprites.js` personajes, edificios, objetos, iconos y retratos
+- `js/render.js` terreno, profundidad, partículas · `js/audio.js` sonido · `js/main.js` bucle, entrada, interfaz, guardado

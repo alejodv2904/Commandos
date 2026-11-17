@@ -1,14 +1,17 @@
 'use strict';
-// Bucle principal, entrada, HUD, guardado y reglas de misión.
+// Bucle principal, entrada, interfaz, guardado y reglas de misión.
+
+const HUD_H = 150;
 
 const G = {
   canvas: null, ctx: null, mini: null,
   cam: { x: 0, y: 0, z: 1 },
   units: [], enemies: [], fx: [], bomb: null,
-  time: 0, paused: false, over: null, overlayOpen: true,
+  time: 0, paused: false, over: null, overlayOpen: true, shake: 0,
+  coneMode: 'all', hover: {},
   stats: { alarms: 0, kills: 0, ko: 0 },
   keys: {}, mouse: { x: 0, y: 0, wx: 0, wy: 0, inside: false },
-  drag: null, lastClick: 0, hudT: 0, toastT: 0, panDrag: null,
+  drag: null, lastClick: 0, hudT: 0, toastT: 0, panDrag: null, hudKey: null,
 
   init() {
     this.canvas = document.getElementById('game');
@@ -16,6 +19,7 @@ const G = {
     this.mini = document.getElementById('mini');
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    Render.init();
     this.bindInput();
     this.reset();
     this.showIntro();
@@ -28,25 +32,29 @@ const G = {
     requestAnimationFrame(loop);
   },
 
-  resize() {
-    const dpr = 1;
-    this.canvas.width = window.innerWidth * dpr; this.canvas.height = window.innerHeight * dpr;
-  },
+  resize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; this.clampCam && this.clampCam(); },
 
   reset() {
     Level.build();
-    Render.bakeGround();
+    FX.reset();
+    Render.bakeLevel();
     const types = ['beret', 'sniper', 'spy', 'sapper'];
     this.units = types.map((t, i) => new Commando(t, Level.startPositions[i][0], Level.startPositions[i][1], i));
+    this.units.forEach(u => { u.face = -Math.PI / 4; });
     this.units[0].selected = true;
     this.enemies = ENEMY_DEFS.map((d, i) => new Enemy(i, d));
-    this.fx = []; this.bomb = null; this.time = 0; this.over = null; this.paused = false;
+    this.fx = []; this.bomb = null; this.time = 0; this.over = null; this.paused = false; this.shake = 0;
+    this.runId = (this.runId || 0) + 1;
     this.stats = { alarms: 0, kills: 0, ko: 0 };
+    // bengala verde en la extracción
+    FX.emitters.push({ rate: 5, fn: () => FX.smoke(6.6 + Math.random() * 0.1, 3.2, 0.1, false, '120,200,110') });
     this.cam.z = 1;
-    this.cam.x = 0; this.cam.y = Level.H * TILE - (this.canvas.height - 96) - 10;
-    this.clampCam();
+    this.centerOn(8, 36);
+    this.hudKey = null;
     this.buildHud();
   },
+
+  camCenter() { return { x: (this.cam.x + this.canvas.width / this.cam.z / 2) / TILE, y: (this.cam.y + (this.canvas.height - HUD_H) / this.cam.z / 2) / TILE }; },
 
   // ---------- reglas ----------
   primary() { return this.units.find(u => u.selected && u.alive) || null; },
@@ -64,6 +72,7 @@ const G = {
     e.state = 'alert'; e.lastSeen = { x: u.x, y: u.y }; e.lostT = 0; e.path = null; e.repathT = 0;
     this.stats.alarms++;
     this.toast('¡Alarma! Un guardia te ha descubierto', true);
+    Sfx.play('alarm');
     for (const o of this.enemies) {
       if (o === e || o.state === 'dead' || o.state === 'down' || o.state === 'alert') continue;
       if (dist(o.x, o.y, e.x, e.y) <= 12) o.startInvestigate(u.x, u.y, 4);
@@ -78,29 +87,41 @@ const G = {
   },
 
   explode(x, y, r, opt) {
-    this.fx.push({ k: 'boom', x, y, r: r + 1, t: 0.6, dur: 0.6 });
-    for (const e of this.enemies) if (e.state !== 'dead' && !e.hidden && !e.carried && dist(e.x, e.y, x, y) <= r) { e.kill(); this.stats.kills++; }
+    FX.explosion(x, y, r); Sfx.play('boom', x, y);
+    Render.decal('scorch', x, y, Math.min(2.5, r * 0.7));
+    this.shake = Math.max(this.shake, Math.min(1.2, r / 4));
+    for (const e of this.enemies) if (e.state !== 'dead' && !e.hidden && !e.carried && dist(e.x, e.y, x, y) <= r) { e.kill('boom'); this.stats.kills++; }
     for (const u of this.units) if (u.alive && dist(u.x, u.y, x, y) <= r) u.damage(3, this, u.def.name + ' ha muerto en una explosión.');
     this.noise(x, y, opt && opt.noise ? opt.noise : 12);
   },
 
-  defeat(msg) { if (!this.over) { this.over = 'lose'; this.showEnd(false, msg); } },
+  defeat(msg) {
+    if (this.over) return;
+    this.over = 'lose'; Sfx.play('lose');
+    const run = this.runId; setTimeout(() => { if (this.runId === run) this.showEnd(false, msg); }, 1200);
+  },
 
   checkWin() {
     if (this.over || !Level.depot.destroyed) return;
-    if (this.units.every(u => u.alive && Level.inExit(u.x, u.y))) { this.over = 'win'; this.showEnd(true); }
+    if (this.units.every(u => u.alive && Level.inExit(u.x, u.y))) {
+      this.over = 'win'; Sfx.play('win');
+      const run = this.runId; setTimeout(() => { if (this.runId === run) this.showEnd(true); }, 600);
+    }
   },
 
-  // ---------- actualización ----------
+  // ---------- bucle ----------
   frame(dt) {
     this.cameraControl(dt);
-    if (!this.paused && !this.over && !this.overlayOpen) this.update(dt);
+    const running = !this.paused && !this.overlayOpen && this.over !== 'win';
+    if (running && !this.over) this.update(dt);
+    if (running) FX.update(dt);
     for (const f of this.fx) f.t -= dt;
     this.fx = this.fx.filter(f => f.t > 0);
-    Render.draw(this);
+    this.shake = Math.max(0, this.shake - dt * 1.5);
+    Render.draw(this, running ? dt : 0);
     Render.drawMinimap(this);
     this.hudT -= dt;
-    if (this.hudT <= 0) { this.updateHud(); this.hudT = 0.15; }
+    if (this.hudT <= 0) { this.updateHud(); this.hudT = 0.12; }
     if (this.toastT > 0) { this.toastT -= dt; if (this.toastT <= 0) document.getElementById('toast').classList.remove('show'); }
   },
 
@@ -109,11 +130,16 @@ const G = {
     for (const u of this.units) u.update(dt, this);
     for (const e of this.enemies) e.update(dt, this);
     if (this.bomb) {
+      const before = Math.ceil(this.bomb.t);
       this.bomb.t -= dt;
+      if (Math.ceil(this.bomb.t) !== before) Sfx.play('tick');
       if (this.bomb.t <= 0) {
         const b = this.bomb; this.bomb = null;
-        Level.destroyDepot(); Render.bakeGround();
+        Level.destroyDepot(); Render.refreshDepot();
         this.explode(b.x, b.y, 6, { noise: 40 });
+        FX.explosion(b.x - 1, b.y + 0.5, 4); FX.explosion(b.x + 1, b.y - 0.5, 4);
+        FX.emitters.push({ rate: 14, fn: () => FX.smoke(b.x + (Math.random() - 0.5) * 2.5, b.y + (Math.random() - 0.5) * 2, 0.3, true, 25 + Math.random() * 25) });
+        FX.emitters.push({ rate: 22, fn: () => FX.fire(b.x + (Math.random() - 0.5) * 2.4, b.y + (Math.random() - 0.5) * 1.8, 0.1) });
         this.toast('¡El depósito ha volado por los aires! Reuníos en la extracción');
       }
     }
@@ -121,31 +147,31 @@ const G = {
   },
 
   cameraControl(dt) {
-    const cam = this.cam, sp = 700 / cam.z;
+    const cam = this.cam, sp = 800 / cam.z;
     let dx = 0, dy = 0;
     const k = this.keys;
     if (k['a'] || k['arrowleft']) dx -= 1; if (k['d'] || k['arrowright']) dx += 1;
     if (k['w'] || k['arrowup']) dy -= 1; if (k['s'] || k['arrowdown']) dy += 1;
     const m = this.mouse;
     if (m.inside && !this.drag && !this.overlayOpen) {
-      const edge = 6, bottom = this.canvas.height - 96;
-      if (m.x < edge) dx -= 1; if (m.x > this.canvas.width - edge) dx += 1;
-      if (m.y < edge) dy -= 1; if (m.y > this.canvas.height - edge && m.y <= this.canvas.height) dy += 1;
+      const e = 6;
+      if (m.x < e) dx -= 1; if (m.x > this.canvas.width - e) dx += 1;
+      if (m.y < e) dy -= 1; if (m.y > this.canvas.height - e) dy += 1;
     }
     cam.x += dx * sp * dt; cam.y += dy * sp * dt;
     this.clampCam();
   },
 
   clampCam() {
-    const cam = this.cam, vw = this.canvas.width / cam.z, vh = (this.canvas.height - 96) / cam.z;
+    const cam = this.cam, vw = this.canvas.width / cam.z, vh = (this.canvas.height - HUD_H) / cam.z;
     const mw = Level.W * TILE, mh = Level.H * TILE;
     cam.x = vw >= mw ? (mw - vw) / 2 : clamp(cam.x, 0, mw - vw);
-    cam.y = vh >= mh ? (mh - vh) / 2 : clamp(cam.y, -10, mh - vh);
+    cam.y = vh >= mh ? (mh - vh) / 2 : clamp(cam.y, -TILE * 2, mh - vh);
   },
 
   centerOn(x, y) {
     this.cam.x = x * TILE - this.canvas.width / this.cam.z / 2;
-    this.cam.y = y * TILE - (this.canvas.height - 96) / this.cam.z / 2;
+    this.cam.y = y * TILE - (this.canvas.height - HUD_H) / this.cam.z / 2;
     this.clampCam();
   },
 
@@ -153,18 +179,34 @@ const G = {
   screenToWorld(sx, sy) { return { x: (sx / this.cam.z + this.cam.x) / TILE, y: (sy / this.cam.z + this.cam.y) / TILE }; },
 
   unitAt(wx, wy) {
-    let best = null, bd = 0.75;
-    for (const u of this.units) { if (!u.alive) continue; const d = dist(wx, wy - 0.45, u.x, u.y); if (d < bd) { bd = d; best = u; } }
+    let best = null, bd = 0.8;
+    for (const u of this.units) { if (!u.alive) continue; const d = dist(wx, wy + (u.crouch ? 0.35 : 0.55), u.x, u.y); if (d < bd) { bd = d; best = u; } }
     return best;
   },
   enemyAt(wx, wy) {
     let best = null, bd = 0.9;
     for (const e of this.enemies) {
-      if (e.hidden || e.carried) continue;
-      const dy = (e.state === 'dead' || e.state === 'down') ? 0 : 0.45;
-      const d = dist(wx, wy - dy, e.x, e.y); if (d < bd) { bd = d; best = e; }
+      if (e.hidden || e.carried || Render.closedAt(e.x, e.y)) continue;
+      const lying = e.state === 'dead' || e.state === 'down';
+      const d = dist(wx, wy + (lying ? 0 : 0.55), e.x, e.y); if (d < bd) { bd = d; best = e; }
     }
     return best;
+  },
+
+  updateHover() {
+    const m = this.mouse, h = { unit: this.unitAt(m.wx, m.wy), enemy: this.enemyAt(m.wx, m.wy), valid: false };
+    const p = this.primary();
+    if (p && p.action) {
+      const e = h.enemy;
+      switch (p.action) {
+        case 'knife': case 'shoot': h.valid = !!e && e.state !== 'dead'; break;
+        case 'syringe': h.valid = !!e && e.state !== 'dead' && e.state !== 'down'; break;
+        case 'carry': h.valid = p.carry ? Level.isBush(m.wx, m.wy) : !!e && (e.state === 'dead' || e.state === 'down'); break;
+        case 'bomb': h.valid = dist(m.wx, m.wy + 0.5, Level.depot.x, Level.depot.y) < 2.4 && !Level.depot.destroyed; break;
+        default: h.valid = true;
+      }
+    }
+    this.hover = h;
   },
 
   bindInput() {
@@ -176,11 +218,13 @@ const G = {
       const m = this.mouse; m.x = e.clientX; m.y = e.clientY; m.inside = true;
       const w = this.screenToWorld(m.x, m.y); m.wx = w.x; m.wy = w.y;
       if (this.drag) { this.drag.cx = m.x; this.drag.cy = m.y; if (Math.hypot(m.x - this.drag.sx, m.y - this.drag.sy) > 6) this.drag.active = true; }
-      if (this.panDrag) { this.cam.x -= (e.movementX) / this.cam.z; this.cam.y -= (e.movementY) / this.cam.z; this.clampCam(); }
+      if (this.panDrag) { this.cam.x -= e.movementX / this.cam.z; this.cam.y -= e.movementY / this.cam.z; this.clampCam(); }
+      this.updateHover();
     });
     cv.addEventListener('mousedown', e => {
+      Sfx.ensure();
       if (this.overlayOpen) return;
-      if (e.button === 0) this.drag = { sx: e.clientX, sy: e.clientY, cx: e.clientX, cy: e.clientY, active: false, shift: e.shiftKey };
+      if (e.button === 0) this.drag = { sx: e.clientX, sy: e.clientY, cx: e.clientX, cy: e.clientY, active: false };
       else if (e.button === 1) { this.panDrag = true; e.preventDefault(); }
       else if (e.button === 2) this.rightClick(e);
     });
@@ -189,34 +233,40 @@ const G = {
       if (e.button !== 0 || !this.drag) return;
       const d = this.drag; this.drag = null;
       if (this.overlayOpen) return;
-      if (d.active) this.boxSelect(d, e.shiftKey);
-      else this.leftClick(e);
+      if (d.active) this.boxSelect(d, e.shiftKey); else this.leftClick(e);
     });
     cv.addEventListener('wheel', e => {
       e.preventDefault();
       const before = this.screenToWorld(e.clientX, e.clientY);
-      this.cam.z = clamp(this.cam.z * (e.deltaY < 0 ? 1.1 : 0.9), 0.6, 1.6);
+      this.cam.z = clamp(this.cam.z * (e.deltaY < 0 ? 1.1 : 0.9), 0.55, 1.6);
       const after = this.screenToWorld(e.clientX, e.clientY);
       this.cam.x += (before.x - after.x) * TILE; this.cam.y += (before.y - after.y) * TILE;
       this.clampCam();
     }, { passive: false });
-    this.mini.addEventListener('mousedown', e => {
+    const miniJump = e => {
       const r = this.mini.getBoundingClientRect();
       this.centerOn((e.clientX - r.left) / r.width * Level.W, (e.clientY - r.top) / r.height * Level.H);
-    });
+    };
+    this.mini.addEventListener('mousedown', e => { miniJump(e); this.miniDrag = true; });
+    this.mini.addEventListener('mousemove', e => { if (this.miniDrag) miniJump(e); });
+    window.addEventListener('mouseup', () => { this.miniDrag = false; });
     window.addEventListener('keydown', e => {
+      Sfx.ensure();
       const k = e.key.toLowerCase();
       if (['f1', 'f2', 'f3', 'f4', 'f5', 'f9', 'tab', ' '].includes(k)) e.preventDefault();
       this.keys[k] = true;
       if (e.repeat) return;
-      if (this.overlayOpen) { if (k === 'enter') this.closeOverlay(); return; }
+      if (this.overlayOpen) { if (k === 'enter') { const b = document.querySelector('#overlay button'); if (b) b.click(); } return; }
       if (k === ' ') this.paused = !this.paused;
-      else if (k === 'escape') { for (const u of this.units) u.action = null; }
+      else if (k === 'escape') { for (const u of this.units) u.action = null; this.updateHover(); }
       else if (k === 'tab') this.cycleUnit();
-      else if (k === 'f1' || k === 'f2' || k === 'f3' || k === 'f4') this.selectOnly(this.units[+k[1] - 1]);
+      else if (['f1', 'f2', 'f3', 'f4'].includes(k)) { this.selectOnly(this.units[+k[1] - 1]); }
       else if (k === 'f5') this.save();
       else if (k === 'f9') this.load();
       else if (k === 'h') this.showIntro();
+      else if (k === 'c') this.toggleCrouch();
+      else if (k === 'v') { this.coneMode = this.coneMode === 'all' ? 'inspect' : 'all'; this.toast(this.coneMode === 'all' ? 'Conos de visión: todos' : 'Conos de visión: solo enemigos señalados (clic izquierdo sobre un enemigo)'); }
+      else if (k === 'm') this.toast(Sfx.toggleMute() ? 'Sonido desactivado' : 'Sonido activado');
       else if (k === 'x') { for (const u of this.selected()) u.order([]); }
       else if (k >= '1' && k <= '5') this.pickAction(+k - 1);
     });
@@ -224,49 +274,60 @@ const G = {
     window.addEventListener('blur', () => { this.keys = {}; });
   },
 
-  selectOnly(u) { if (!u || !u.alive) return; for (const x of this.units) x.selected = false; u.selected = true; this.updateHud(); },
+  selectOnly(u) {
+    if (!u || !u.alive) return;
+    for (const x of this.units) x.selected = false;
+    u.selected = true; Sfx.play('select'); this.updateHud(); this.updateHover();
+  },
   cycleUnit() {
     const alive = this.units.filter(u => u.alive); if (!alive.length) return;
     const cur = alive.findIndex(u => u.selected);
     this.selectOnly(alive[(cur + 1) % alive.length]);
     const p = this.primary(); if (p) this.centerOn(p.x, p.y);
   },
+  toggleCrouch() {
+    const sel = this.selected(); if (!sel.length) return;
+    const v = !sel[0].crouch;
+    for (const u of sel) { if (u.carry) continue; u.crouch = v; if (v) u.run = false; }
+    this.updateHud();
+  },
 
   boxSelect(d, add) {
     const x0 = Math.min(d.sx, d.cx), x1 = Math.max(d.sx, d.cx), y0 = Math.min(d.sy, d.cy), y1 = Math.max(d.sy, d.cy);
-    let any = false; const hit = [];
+    const hit = [];
     for (const u of this.units) {
       if (!u.alive) continue;
-      const sx = (u.x * TILE - this.cam.x) * this.cam.z, sy = ((u.y * TILE - 16) - this.cam.y) * this.cam.z;
+      const sx = (u.x * TILE - this.cam.x) * this.cam.z, sy = ((u.y * TILE - 20) - this.cam.y) * this.cam.z;
       if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1) hit.push(u);
     }
+    if (!hit.length && !add) return;
     if (!add) for (const u of this.units) u.selected = false;
-    for (const u of hit) { u.selected = true; any = true; }
-    this.updateHud();
+    for (const u of hit) u.selected = true;
+    Sfx.play('select'); this.updateHud();
   },
 
   leftClick(e) {
     const w = this.screenToWorld(e.clientX, e.clientY);
     const u = this.unitAt(w.x, w.y);
-    if (u) {
-      if (e.shiftKey) u.selected = !u.selected;
-      else this.selectOnly(u);
-      this.updateHud(); return;
-    }
+    if (u) { if (e.shiftKey) { u.selected = !u.selected; this.updateHud(); } else this.selectOnly(u); return; }
     const sel = this.selected();
+    const en = this.enemyAt(w.x, w.y);
+    if (en && en.state !== 'dead' && en.state !== 'down' && (!sel.length || this.coneMode === 'inspect')) { en.inspect = !en.inspect; return; }
     if (!sel.length) return;
     const now = performance.now();
     const run = e.shiftKey || now - this.lastClick < 350;
     this.lastClick = now;
-    // formación alrededor del destino
+    let ok = false;
     sel.forEach((s, i) => {
       let tx = w.x, ty = w.y;
       if (i > 0) { const a = i * 2.4, r = 0.55 + 0.25 * i; tx += Math.cos(a) * r; ty += Math.sin(a) * r * 0.8; }
       if (Level.solid(Math.floor(tx), Math.floor(ty)) && i > 0) { tx = w.x; ty = w.y; }
       const p = findPath(s.x, s.y, tx, ty);
-      if (!p) { this.toast('No se puede llegar a ese punto', true); return; }
-      s.order(p, run);
+      if (!p) return;
+      s.order(p, run); ok = true;
     });
+    if (!ok) { this.toast('No se puede llegar a ese punto', true); return; }
+    Sfx.play('order');
     this.fx.push({ k: 'ring', x: w.x, y: w.y, r: 0.7, t: 0.4, dur: 0.4 });
   },
 
@@ -274,35 +335,28 @@ const G = {
     const w = this.screenToWorld(e.clientX, e.clientY);
     const sel = this.selected();
     if (!sel.length) return;
-    if (!sel.some(u => u.action)) { this.toast('Elige una acción primero (teclas 1-3 o botones inferiores)'); return; }
+    if (!sel.some(u => u.action)) { this.toast('Elige primero una acción de la mochila (teclas 1-3)'); return; }
     let did = false;
-    for (const u of sel) {
-      if (!u.action) continue;
-      if (this.giveTask(u, w)) did = true;
-    }
-    if (!did) this.toast('Objetivo no válido para esa acción', true);
+    for (const u of sel) if (u.action && this.giveTask(u, w)) did = true;
+    if (!did) this.toast('Objetivo no válido para esa acción', true); else Sfx.play('order');
   },
 
   giveTask(u, w) {
-    const a = u.action;
-    const en = this.enemyAt(w.x, w.y);
-    const base = { kind: a };
+    const a = u.action, en = this.enemyAt(w.x, w.y);
     switch (a) {
-      case 'knife': if (!en || en.state === 'dead') return false; u.task = { ...base, target: en }; break;
-      case 'syringe': if (!en || en.state === 'dead' || en.state === 'down') return false; u.task = { ...base, target: en }; break;
-      case 'shoot': if (!en || en.state === 'dead') return false; u.task = { ...base, target: en }; break;
-      case 'carry': {
+      case 'knife': if (!en || en.state === 'dead') return false; u.task = { kind: a, target: en }; break;
+      case 'syringe': if (!en || en.state === 'dead' || en.state === 'down') return false; u.task = { kind: a, target: en }; break;
+      case 'shoot': if (!en || en.state === 'dead') return false; u.task = { kind: a, target: en }; break;
+      case 'carry':
         if (u.carry) { u.task = { kind: 'carry', x: w.x, y: w.y }; break; }
         if (!en || (en.state !== 'dead' && en.state !== 'down')) return false;
         u.task = { kind: 'carry', target: en }; break;
-      }
       case 'lure': case 'grenade': u.task = { kind: a, x: w.x, y: w.y }; break;
       case 'bomb': {
         const d = Level.depot;
-        if (dist(w.x, w.y + 0.55, d.x, d.y) > 2.2 && dist(w.x, w.y, d.x, d.y) > 2.2) return false;
+        if (dist(w.x, w.y + 0.5, d.x, d.y) > 2.4 && dist(w.x, w.y, d.x, d.y) > 2.4) return false;
         u.task = { kind: 'bomb' }; break;
       }
-      case 'disguise': return false;
       default: return false;
     }
     u.path = []; u.run = false; u.repathT = 0; u.busyT = 0;
@@ -314,107 +368,135 @@ const G = {
     const act = p.def.actions[i]; if (!act) return;
     if (act.instant) {
       for (const u of this.selected()) if (u.type === 'spy') { u.disguised = !u.disguised; u.task = null; }
-      this.toast(p.disguised ? 'Espía disfrazado de soldado' : 'Espía sin disfraz');
-      this.updateHud(); return;
+      this.toast(p.disguised ? 'Espía disfrazado de oficial' : 'Espía sin disfraz');
+      Sfx.play('select'); this.updateHud(); return;
     }
-    for (const u of this.selected()) u.action = u.def.actions.find(x => x.id === act.id) ? act.id : u.action;
-    this.updateHud();
+    const same = p.action === act.id;
+    for (const u of this.selected()) if (u.def.actions.some(x => x.id === act.id)) u.action = same ? null : act.id;
+    Sfx.play('select'); this.updateHud(); this.updateHover();
   },
 
-  // ---------- HUD ----------
+  // ---------- interfaz ----------
   buildHud() {
-    const box = document.getElementById('portraits');
+    const box = document.getElementById('squad');
     box.innerHTML = '';
     this.units.forEach((u, i) => {
       const c = document.createElement('div');
-      c.className = 'card'; c.id = 'card' + i;
-      c.addEventListener('click', e => {
-        if (e.shiftKey) u.selected = !u.selected; else this.selectOnly(u);
-        this.updateHud();
-      });
+      c.className = 'sq'; c.id = 'sq' + i;
+      c.innerHTML = `<canvas width="64" height="70"></canvas><div class="sq-hp"><div class="fill"></div></div><span class="fk">F${i + 1}</span>`;
+      Sprites.portrait(c.querySelector('canvas').getContext('2d'), u.type, 64, 70);
+      c.addEventListener('click', e => { if (e.shiftKey) { u.selected = !u.selected; this.updateHud(); } else this.selectOnly(u); });
       c.addEventListener('dblclick', () => this.centerOn(u.x, u.y));
+      c.title = u.def.name;
       box.appendChild(c);
     });
-    document.getElementById('actions').innerHTML = '';
+    this.hudKey = null;
+  },
+
+  buildMainPanel(p) {
+    const pc = document.getElementById('portrait'), x = pc.getContext('2d');
+    x.clearRect(0, 0, pc.width, pc.height);
+    const slots = document.getElementById('slots');
+    slots.innerHTML = '';
+    if (!p) { document.getElementById('unit-name').textContent = '—'; return; }
+    Sprites.portrait(x, p.disguised ? 'spyDis' : p.type, pc.width, pc.height);
+    document.getElementById('unit-name').textContent = p.def.name.toUpperCase();
+    const list = p.def.actions.map((a, i) => ({ id: a.id, name: a.name, key: String(i + 1), desc: a.desc, i }));
+    list.push({ id: 'crouch', name: 'Agacharse', key: 'C', desc: 'Agachado: más lento, pero solo te ven en la zona oscura (cercana) del cono.' });
+    for (const a of list) {
+      const s = document.createElement('div');
+      s.className = 'slot'; s.dataset.id = a.id; s.title = `${a.name} — ${a.desc}`;
+      const c = makeCanvas(46, 46); Sprites.icon(c.getContext('2d'), a.id, 46);
+      s.appendChild(c);
+      s.insertAdjacentHTML('beforeend', `<span class="key">${a.key}</span><span class="badge"></span>`);
+      s.addEventListener('click', () => { if (a.id === 'crouch') this.toggleCrouch(); else this.pickAction(a.i); });
+      s.addEventListener('mouseenter', () => { this.hintHover = true; document.getElementById('hint').innerHTML = `<b>${a.name}</b> · ${a.desc}`; });
+      s.addEventListener('mouseleave', () => { this.hintHover = false; });
+      slots.appendChild(s);
+    }
   },
 
   updateHud() {
-    this.units.forEach((u, i) => {
-      const c = document.getElementById('card' + i); if (!c) return;
-      c.className = 'card' + (u.selected ? ' sel' : '') + (u.alive ? '' : ' dead');
-      let st = '';
-      if (u.type === 'sniper') st = `Balas: ${u.ammo}`;
-      if (u.type === 'sapper') st = `Granadas: ${u.grenades}`;
-      if (u.type === 'spy') st = u.disguised ? 'Disfrazado' : 'Sin disfraz';
-      if (u.carry) st = 'Carga un cuerpo';
-      let pips = ''; for (let k = 0; k < u.def.hp; k++) pips += `<div class="pip${k < u.hp ? ' on' : ''}"></div>`;
-      c.innerHTML = `<div class="sw" style="background:${u.def.color}"></div><span class="fk">F${i + 1}</span><div class="nm">${u.def.name}</div><div class="pips">${pips}</div><div class="st">${st || '&nbsp;'}</div>`;
-    });
-    const p = this.primary(), ab = document.getElementById('actions'), hint = document.getElementById('hint');
-    ab.innerHTML = '';
+    const p = this.primary();
+    const key = p ? p.idx + (p.disguised ? 'd' : '') : 'none';
+    if (key !== this.hudKey) { this.hudKey = key; this.buildMainPanel(p); }
     if (p) {
-      p.def.actions.forEach((a, i) => {
-        const b = document.createElement('div');
-        const on = a.instant ? p.disguised : p.action === a.id;
-        b.className = 'act' + (on ? ' on' : '');
-        b.innerHTML = `${a.name}<small>[${i + 1}]</small>`;
-        b.title = a.desc;
-        b.addEventListener('click', () => this.pickAction(i));
-        ab.appendChild(b);
+      document.querySelectorAll('#slots .slot').forEach(s => {
+        const id = s.dataset.id;
+        const on = id === 'crouch' ? p.crouch : id === 'disguise' ? p.disguised : p.action === id;
+        s.classList.toggle('on', on);
+        const badge = s.querySelector('.badge');
+        badge.textContent = id === 'shoot' ? p.ammo : id === 'grenade' ? p.grenades : '';
+        s.classList.toggle('empty', (id === 'shoot' && p.ammo <= 0) || (id === 'grenade' && p.grenades <= 0));
       });
+      document.getElementById('unit-hp').innerHTML = Array.from({ length: p.def.hp }, (_, i) => `<i class="${i < p.hp ? 'on' : ''}"></i>`).join('');
+      let st = p.crouch ? 'Agachado' : p.run && p.moving ? 'Corriendo' : 'De pie';
+      if (p.carry) st = 'Cargando un cuerpo';
+      if (p.disguised) st += ' · Disfrazado';
+      if (p.inBush) st += ' · Oculto';
+      document.getElementById('unit-state').textContent = st;
       const cur = p.def.actions.find(a => a.id === p.action);
-      hint.textContent = cur ? cur.desc : 'Clic izq.: mover (doble clic = correr) · Clic der.: usar la acción elegida';
-    } else hint.textContent = '';
+      if (!this.hintHover) document.getElementById('hint').innerHTML = cur ? `<b>${cur.name}</b> · ${cur.desc}` : 'Clic izq.: mover (doble clic = correr) · Clic der.: usar la acción elegida';
+    } else {
+      document.getElementById('unit-hp').innerHTML = ''; document.getElementById('unit-state').textContent = '';
+    }
+    this.units.forEach((u, i) => {
+      const c = document.getElementById('sq' + i); if (!c) return;
+      c.className = 'sq' + (u.selected ? ' sel' : '') + (u.alive ? '' : ' dead');
+      c.querySelector('.fill').style.width = (u.hp / u.def.hp * 100) + '%';
+    });
 
-    // objetivos
     const o = document.getElementById('objectives');
     const done1 = Level.depot.destroyed;
     const allIn = this.units.every(u => u.alive && Level.inExit(u.x, u.y));
     const t = Math.floor(this.time), mm = String(Math.floor(t / 60)).padStart(2, '0'), ss = String(t % 60).padStart(2, '0');
-    o.innerHTML = `<h3>MISIÓN: OPERACIÓN DEPÓSITO</h3>
-      <div class="${done1 ? 'done' : ''}">${done1 ? '✔' : '◻'} Destruir el depósito de combustible</div>
-      <div class="${done1 && allIn ? 'done' : ''}">${done1 && allIn ? '✔' : '◻'} Reunir a los 4 comandos en la extracción</div>
+    o.innerHTML = `<h3>OBJETIVOS</h3>
+      <div class="${done1 ? 'done' : ''}">${done1 ? '☑' : '☐'} Volar el depósito de combustible</div>
+      <div class="${done1 && allIn ? 'done' : ''}">${done1 && allIn ? '☑' : '☐'} Reunir a los 4 comandos en la extracción</div>
       ${this.bomb ? `<div class="bomb">⏱ Detonación en ${Math.ceil(this.bomb.t)} s</div>` : ''}
-      <div class="meta">Tiempo ${mm}:${ss} · Alarmas ${this.stats.alarms} · H: ayuda · F5/F9: guardar/cargar</div>`;
+      <div class="meta">${mm}:${ss} · Alarmas: ${this.stats.alarms}${this.paused ? ' · EN PAUSA' : ''}</div>`;
   },
 
   toast(msg, bad) {
     const t = document.getElementById('toast');
     t.textContent = msg; t.className = 'show' + (bad ? ' bad' : '');
-    this.toastT = 2.8;
+    this.toastT = 3;
   },
 
   showIntro() {
     this.overlayOpen = true;
     const ov = document.getElementById('overlay');
     ov.className = 'show';
-    ov.innerHTML = `<div class="panel">
-      <h1>COMMANDOS 3</h1><h2>HOMBRES DE VALOR · OPERACIÓN DEPÓSITO</h2>
-      <p>Infiltra a tu escuadra en la base enemiga, haz volar el depósito de combustible con la carga del Zapador y reúne a los cuatro comandos en la zona de extracción (arriba a la izquierda). Si cae un comando, la misión fracasa.</p>
-      <h4>CONTROLES</h4>
-      <table>
-        <tr><td>Clic izquierdo</td><td>Seleccionar comando / mover (doble clic o Shift: correr)</td></tr>
-        <tr><td>Arrastrar</td><td>Selección múltiple (Shift: añadir)</td></tr>
-        <tr><td>Clic derecho</td><td>Ejecutar la acción elegida sobre el objetivo</td></tr>
-        <tr><td>1 · 2 · 3</td><td>Elegir acción del comando (o pulsa los botones)</td></tr>
-        <tr><td>Esc · X</td><td>Cancelar acción · detener movimiento</td></tr>
-        <tr><td>Espacio</td><td>Pausa (se pueden dar órdenes en pausa)</td></tr>
-        <tr><td>F1–F4 · Tab</td><td>Seleccionar comando / siguiente</td></tr>
-        <tr><td>WASD · flechas · bordes</td><td>Mover cámara (también clic central y minimapa)</td></tr>
-        <tr><td>Rueda</td><td>Zoom</td></tr>
-        <tr><td>F5 · F9</td><td>Guardado / carga rápida</td></tr>
+    ov.innerHTML = `<div class="dossier">
+      <div class="stamp">ALTO SECRETO</div>
+      <div class="hdr">MANDO DE OPERACIONES COMBINADAS · EXPEDIENTE Nº 1943-07</div>
+      <h1>COMMANDOS 3</h1><h2>Hombres de Valor — Operación Depósito</h2>
+      <p>El enemigo abastece a sus divisiones blindadas desde un depósito de combustible oculto tras el río. Su escuadra deberá infiltrarse en la base, colocar la carga del Zapador en los tanques y reunirse junto al jeep, en el punto de extracción marcado con la bengala verde.</p>
+      <p><b>Si cae un solo comando, la operación habrá fracasado.</b></p>
+      <div class="cols">
+      <div><h4>CONTROLES</h4><table>
+        <tr><td>Clic izquierdo</td><td>Seleccionar / mover (doble clic: correr)</td></tr>
+        <tr><td>Arrastrar</td><td>Seleccionar varios (Shift: añadir)</td></tr>
+        <tr><td>Clic derecho</td><td>Usar la acción elegida</td></tr>
+        <tr><td>1 · 2 · 3</td><td>Elegir acción de la mochila</td></tr>
+        <tr><td>C</td><td>Agacharse / levantarse</td></tr>
+        <tr><td>Espacio</td><td>Pausa táctica</td></tr>
+        <tr><td>F1–F4 · Tab</td><td>Elegir comando</td></tr>
+        <tr><td>WASD · bordes · rueda</td><td>Cámara y zoom</td></tr>
+        <tr><td>V</td><td>Conos: todos / solo señalados</td></tr>
+        <tr><td>F5 · F9 · M</td><td>Guardar · cargar · sonido</td></tr>
+      </table></div>
+      <div><h4>LA ESCUADRA</h4><table>
+        <tr><td>Boina Verde</td><td>Cuchillo silencioso. Carga cuerpos y los esconde en los arbustos.</td></tr>
+        <tr><td>Francotirador</td><td>Rifle de precisión de largo alcance. Ruidoso; 6 balas.</td></tr>
+        <tr><td>Espía</td><td>Disfraz de oficial, anestesia y señuelo. Los oficiales enemigos lo reconocen.</td></tr>
+        <tr><td>Zapador</td><td>Carga de tiempo y granadas.</td></tr>
       </table>
-      <h4>COMANDOS</h4>
-      <table>
-        <tr><td>Boina Verde</td><td>Cuchillo silencioso; carga y esconde cuerpos en arbustos.</td></tr>
-        <tr><td>Francotirador</td><td>Elimina a larga distancia (ruidoso, 6 balas).</td></tr>
-        <tr><td>Espía</td><td>Disfraz, anestesia silenciosa y señuelo sonoro.</td></tr>
-        <tr><td>Zapador</td><td>Carga de tiempo y granadas (¡fuego amigo!).</td></tr>
-      </table>
-      <h4>CONSEJOS</h4>
-      <p>Los conos amarillos muestran lo que ve cada guardia; las paredes los bloquean. Los arbustos esconden. Un guardia que encuentra un cuerpo da la alarma, así que escóndelo.</p>
-      <button id="startBtn">${this.time > 0 ? 'Continuar' : 'Comenzar misión'}</button></div>`;
-    document.getElementById('startBtn').onclick = () => this.closeOverlay();
+      <h4>INFORME DE INTELIGENCIA</h4>
+      <p class="small">Los conos verdes muestran la vista de cada centinela. En la zona clara solo ven a quien va de pie; en la oscura, también a los agachados. Paredes, árboles y vehículos bloquean la vista; los arbustos ocultan. Un cuerpo a la vista da la alarma.</p></div>
+      </div>
+      <button>${this.time > 0 ? 'Continuar' : 'Comenzar operación'}</button></div>`;
+    ov.querySelector('button').onclick = () => { Sfx.ensure(); this.closeOverlay(); };
   },
 
   closeOverlay() { this.overlayOpen = false; document.getElementById('overlay').className = ''; },
@@ -423,10 +505,13 @@ const G = {
     this.overlayOpen = true;
     const t = Math.floor(this.time), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
     const ov = document.getElementById('overlay'); ov.className = 'show';
-    ov.innerHTML = `<div class="panel ${win ? 'win' : 'lose'}">
+    ov.innerHTML = `<div class="dossier ${win ? 'win' : 'lose'}">
+      <div class="stamp">${win ? 'CUMPLIDA' : 'FRACASO'}</div>
+      <div class="hdr">INFORME FINAL DE LA OPERACIÓN</div>
       <h1>${win ? 'MISIÓN CUMPLIDA' : 'MISIÓN FRACASADA'}</h1>
-      <h2>${win ? 'EL DEPÓSITO HA SIDO DESTRUIDO' : (msg || '').toUpperCase()}</h2>
-      <p>Tiempo: ${mm}:${ss}<br>Alarmas: ${this.stats.alarms}<br>Enemigos eliminados: ${this.stats.kills}<br>Enemigos dormidos: ${this.stats.ko}</p>
+      <h2>${win ? 'El depósito de combustible ha sido destruido' : (msg || '')}</h2>
+      <table class="stats"><tr><td>Tiempo</td><td>${mm}:${ss}</td></tr><tr><td>Alarmas</td><td>${this.stats.alarms}</td></tr>
+      <tr><td>Enemigos eliminados</td><td>${this.stats.kills}</td></tr><tr><td>Enemigos dormidos</td><td>${this.stats.ko}</td></tr></table>
       <button id="againBtn">Reintentar</button>${win ? '' : ' <button id="loadBtn">Cargar partida (F9)</button>'}</div>`;
     document.getElementById('againBtn').onclick = () => { this.reset(); this.closeOverlay(); };
     const lb = document.getElementById('loadBtn'); if (lb) lb.onclick = () => { this.over = null; this.closeOverlay(); this.load(); };
@@ -437,8 +522,8 @@ const G = {
     if (this.over) return;
     const snap = {
       time: this.time, stats: this.stats, bomb: this.bomb, destroyed: Level.depot.destroyed,
-      units: this.units.map(u => ({ x: u.x, y: u.y, hp: u.hp, alive: u.alive, ammo: u.ammo, gr: u.grenades, dis: u.disguised, face: u.face, carry: u.carry ? u.carry.id : null })),
-      enemies: this.enemies.map(e => ({ x: e.x, y: e.y, face: e.face, state: e.state, wp: e.wp, downT: e.downT, hidden: e.hidden, carried: e.carried, disc: e.discovered, ls: e.lastSeen }))
+      units: this.units.map(u => ({ x: u.x, y: u.y, hp: u.hp, alive: u.alive, ammo: u.ammo, gr: u.grenades, dis: u.disguised, cr: u.crouch, face: u.face, carry: u.carry ? u.carry.id : null })),
+      enemies: this.enemies.map(e => ({ x: e.x, y: e.y, face: e.face, state: e.state, cause: e.cause, wp: e.wp, downT: e.downT, hidden: e.hidden, carried: e.carried, disc: e.discovered, ls: e.lastSeen }))
     };
     try { localStorage.setItem('commandos3-save', JSON.stringify(snap)); this.toast('Partida guardada'); }
     catch (err) { this.toast('No se pudo guardar', true); }
@@ -451,22 +536,29 @@ const G = {
     const sel = this.units.map(u => u.selected);
     this.reset();
     this.time = snap.time; this.stats = snap.stats; this.bomb = snap.bomb;
-    if (snap.destroyed) { Level.destroyDepot(); Render.bakeGround(); }
+    if (snap.destroyed) {
+      Level.destroyDepot(); Render.refreshDepot();
+      const b = Level.depot;
+      FX.emitters.push({ rate: 14, fn: () => FX.smoke(b.x + (Math.random() - 0.5) * 2.5, b.y + (Math.random() - 0.5) * 2, 0.3, true, 25 + Math.random() * 25) });
+    }
     snap.units.forEach((s, i) => {
       const u = this.units[i];
-      Object.assign(u, { x: s.x, y: s.y, hp: s.hp, alive: s.alive, ammo: s.ammo, grenades: s.gr, disguised: s.dis, face: s.face });
+      Object.assign(u, { x: s.x, y: s.y, hp: s.hp, alive: s.alive, ammo: s.ammo, grenades: s.gr, disguised: s.dis, crouch: !!s.cr, face: s.face });
       u.selected = !!sel[i] && s.alive;
     });
     snap.enemies.forEach((s, i) => {
       const e = this.enemies[i];
-      Object.assign(e, { x: s.x, y: s.y, face: s.face, state: s.state, wp: s.wp, downT: s.downT, hidden: s.hidden, carried: s.carried, discovered: s.disc });
+      Object.assign(e, { x: s.x, y: s.y, face: s.face, state: s.state, cause: s.cause, wp: s.wp, downT: s.downT, hidden: s.hidden, carried: s.carried, discovered: s.disc });
       e.path = null; e.waitT = 0;
       if (s.state === 'alert' || s.state === 'investigate') { e.state = 'investigate'; e.target = s.ls || { x: s.x, y: s.y }; e.lookT = 3; e.arrived = false; }
     });
     snap.units.forEach((s, i) => { if (s.carry !== null && s.carry !== undefined) { this.units[i].carry = this.enemies[s.carry]; this.enemies[s.carry].carried = true; } });
     if (!this.units.some(u => u.selected)) { const f = this.units.find(u => u.alive); if (f) f.selected = true; }
-    this.updateHud(); this.toast('Partida cargada');
+    const p = this.primary(); if (p) this.centerOn(p.x, p.y);
+    this.hudKey = null; this.updateHud(); this.toast('Partida cargada');
   }
 };
 
-window.addEventListener('load', () => G.init());
+window.G = G;
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => G.init());
+else G.init();

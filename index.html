@@ -4,27 +4,43 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Commandos 3 – Hombres de Valor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="objectives"></div>
-<div id="minimap-wrap"><canvas id="mini" width="192" height="132"></canvas></div>
+<div id="minimap-wrap"><canvas id="mini" width="256" height="176"></canvas></div>
 <div id="toast"></div>
 
 <div id="hud">
-  <div id="portraits"></div>
-  <div id="actions"></div>
-  <div id="hint"></div>
+  <div id="main-panel" class="leather">
+    <div id="portrait-frame"><canvas id="portrait" width="112" height="128"></canvas></div>
+    <div id="unit-info">
+      <div id="unit-name"></div>
+      <div id="unit-hp"></div>
+      <div id="unit-state"></div>
+    </div>
+    <div id="backpack">
+      <div class="bp-title">MOCHILA</div>
+      <div id="slots"></div>
+    </div>
+  </div>
+  <div id="squad" class="leather"></div>
+  <div id="hint" class="leather"></div>
 </div>
 
 <div id="overlay"></div>
 
 <script src="js/util.js"></script>
+<script src="js/textures.js"></script>
 <script src="js/level.js"></script>
 <script src="js/entities.js"></script>
+<script src="js/sprites.js"></script>
 <script src="js/render.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

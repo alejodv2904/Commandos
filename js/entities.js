@@ -40,7 +40,7 @@ class Commando {
     this.hp = d.hp; this.alive = true; this.selected = false;
     this.path = []; this.run = false; this.task = null; this.action = null;
     this.ammo = d.ammo || 0; this.grenades = d.grenades || 0;
-    this.disguised = false; this.carry = null;
+    this.disguised = false; this.carry = null; this.crouch = false;
     this.cool = 0; this.busyT = 0; this.busyCb = null; this.busyKind = null;
     this.repathT = 0; this.noiseT = 0; this.hurt = 0; this.moving = false; this.inBush = false;
     this.anim = 0;
@@ -56,7 +56,7 @@ class Commando {
     }
   }
 
-  order(path, run) { this.task = null; this.busyT = 0; this.busyCb = null; this.path = path || []; this.run = !!run; }
+  order(path, run) { this.task = null; this.busyT = 0; this.busyCb = null; this.path = path || []; this.run = !!run; if (run) this.crouch = false; }
 
   chase(tx, ty, dt) {
     this.repathT -= dt;
@@ -79,8 +79,8 @@ class Commando {
     } else {
       if (this.task) this.runTask(dt, G);
       if (this.busyT <= 0 && this.path.length) {
-        const run = this.run && !this.carry;
-        const sp = this.def.speed * (run ? 1.7 : 1) * (this.carry ? 0.55 : 1);
+        const run = this.run && !this.carry && !this.crouch;
+        const sp = this.def.speed * (run ? 1.7 : 1) * (this.carry ? 0.55 : 1) * (this.crouch ? 0.55 : 1);
         this.moving = stepAlong(this, sp, dt);
         if (this.moving) {
           this.face = turnToward(this.face, this.moveAng, 14 * dt);
@@ -110,7 +110,7 @@ class Commando {
           this.task = null; this.faceTo(e.x, e.y);
           this.startBusy(0.5, t.kind, () => {
             if (e.state === 'dead') return;
-            if (t.kind === 'knife') { e.kill(); G.stats.kills++; } else { e.knockOut(); G.stats.ko++; }
+            if (t.kind === 'knife') { e.kill('knife'); G.stats.kills++; Sfx.play('knife', e.x, e.y); } else { e.knockOut(); G.stats.ko++; Sfx.play('thud', e.x, e.y); }
           });
         } else this.chase(e.x, e.y, dt);
         break;
@@ -124,8 +124,9 @@ class Commando {
           this.task = null; this.faceTo(e.x, e.y);
           this.startBusy(0.8, 'shoot', () => {
             if (e.state === 'dead' || this.ammo <= 0) return;
-            this.ammo--; e.kill(); G.stats.kills++;
+            this.ammo--; e.kill('shot'); G.stats.kills++;
             G.fx.push({ k: 'tracer', x0: this.x, y0: this.y, x1: e.x, y1: e.y, t: 0.15, dur: 0.15 });
+            FX.muzzle(this.x, this.y, this.face); Sfx.play('rifle', this.x, this.y);
             G.noise(this.x, this.y, 10);
           });
         } else this.chase(e.x, e.y, dt);
@@ -136,7 +137,7 @@ class Commando {
           const e = t.target;
           if (!e || (e.state !== 'dead' && e.state !== 'down') || e.hidden || e.carried) { this.task = null; this.path = []; break; }
           if (dist(this.x, this.y, e.x, e.y) <= 1.1) {
-            this.carry = e; e.carried = true; this.path = []; this.task = null;
+            this.carry = e; e.carried = true; this.path = []; this.task = null; this.crouch = false;
             G.toast('Cuerpo cargado: clic derecho en un arbusto para esconderlo');
           } else this.chase(e.x, e.y, dt);
         } else {
@@ -156,7 +157,7 @@ class Commando {
           if (this.cool > 0) break;
           this.cool = 3;
           this.startBusy(0.4, 'lure', () => {
-            G.fx.push({ k: 'ring', x: t.x, y: t.y, r: 3, t: 0.8, dur: 0.8 });
+            G.fx.push({ k: 'ring', x: t.x, y: t.y, r: 3, t: 0.8, dur: 0.8 }); Sfx.play('whistle', t.x, t.y);
             G.noise(t.x, t.y, 6);
           });
         } else this.chase(t.x, t.y, dt);
@@ -178,8 +179,9 @@ class Commando {
         const dp = Level.depot;
         if (dist(this.x, this.y, dp.x, dp.y) <= 2.4) {
           this.task = null; this.faceTo(dp.x, dp.y);
+          this.crouch = true;
           this.startBusy(3, 'plant', () => {
-            G.bomb = { x: dp.x, y: dp.y, t: 20 };
+            G.bomb = { x: dp.x, y: dp.y, t: 20 }; Sfx.play('plant', dp.x, dp.y);
             G.toast('Bomba colocada: 20 segundos. ¡Corred a la zona de extracción!');
           });
         } else this.chase(dp.x, dp.y, dt);
@@ -202,7 +204,7 @@ class Enemy {
     this.hidden = false; this.carried = false; this.discovered = false; this.anim = 0;
   }
 
-  kill() { this.state = 'dead'; this.path = []; this.susp = 0; }
+  kill(cause) { this.state = 'dead'; this.cause = cause || 'shot'; this.path = []; this.susp = 0; }
   knockOut() { this.state = 'down'; this.downT = 35; this.path = []; this.susp = 0; }
   startInvestigate(x, y, look) {
     if (this.state === 'alert' || this.state === 'dead' || this.state === 'down') return;
@@ -225,6 +227,7 @@ class Enemy {
     } else {
       if (d > range) return 0;
       if (u.inBush && d > 2.4) return 0;
+      if (u.crouch && d > range * 0.5) return 0; // zona lejana del cono: no ve a los agachados
       rate = 0.9 + (1 - d / range) * 3.6;
     }
     if (d > 1.2 && Math.abs(angDiff(Math.atan2(u.y - this.y, u.x - this.x), this.face)) > half) return 0;
@@ -344,17 +347,20 @@ class Enemy {
     this.shootCd = 1.0;
     const d = dist(this.x, this.y, t.x, t.y);
     G.fx.push({ k: 'tracer', x0: this.x, y0: this.y, x1: t.x, y1: t.y, t: 0.12, dur: 0.12, enemy: true });
+    FX.muzzle(this.x, this.y, this.face); Sfx.play('shot', this.x, this.y);
     G.noise(this.x, this.y, 12);
-    if (Math.random() < clamp(0.8 - 0.05 * d, 0.25, 0.75)) t.damage(1, G, t.def.name + ' ha sido abatido por una patrulla.');
+    if (Math.random() < clamp(0.8 - 0.05 * d - (t.crouch ? 0.15 : 0), 0.2, 0.75)) t.damage(1, G, t.def.name + ' ha sido abatido por una patrulla.');
+    else FX.dust(t.x + (Math.random() - 0.5), t.y + (Math.random() - 0.5) * 0.6);
   }
 }
 
 const ENEMY_DEFS = [
-  { x: 34.5, y: 21.5, patrol: [{ x: 34.5, y: 21.5, face: 0 }] },
-  { x: 34.5, y: 24.5, patrol: [{ x: 34.5, y: 24.5, face: 0 }] },
+  { x: 34.5, y: 21.5, patrol: [{ x: 34.5, y: 21.5, face: 3.14 }] },
+  { x: 34.5, y: 24.5, patrol: [{ x: 34.5, y: 24.5, face: 3.14 }] },
   { x: 18.5, y: 22.5, patrol: [{ x: 18.5, y: 22.5, wait: 2 }, { x: 28.5, y: 22.5, wait: 2 }] },
-  { x: 8.5, y: 18.5, patrol: [{ x: 8.5, y: 18.5, wait: 1.5 }, { x: 20.5, y: 18.5, wait: 1.5 }] },
-  { x: 14.5, y: 40.5, patrol: [{ x: 14.5, y: 40.5, wait: 2 }, { x: 26.5, y: 40.5, wait: 2 }] },
+  { x: 8.5, y: 18.5, patrol: [{ x: 8.5, y: 18.5, wait: 1.5 }, { x: 17.5, y: 18.5, wait: 1.5 }] },
+  { x: 14.5, y: 38.5, patrol: [{ x: 14.5, y: 38.5, wait: 2 }, { x: 20.5, y: 38.5, wait: 2.5 }] },
+  { x: 26.5, y: 5.5, patrol: [{ x: 26.5, y: 5.5, face: 3.14 }] },
   { x: 44.5, y: 11.5, patrol: [{ x: 44.5, y: 11.5, face: 1.57 }] },
   { x: 47.5, y: 12.5, patrol: [{ x: 47.5, y: 12.5, face: 3.14 }] },
   { x: 56.5, y: 13.5, patrol: [{ x: 56.5, y: 13.5, face: 3.14 }], officer: true },
