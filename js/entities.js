@@ -150,7 +150,7 @@ class Commando {
     if (this.inVehicle) { this.x = this.inVehicle.x; this.y = this.inVehicle.y; this.moving = false; return; }
     this.inBush = Level.isBush(this.x, this.y);
     this.moving = false;
-    if (this.onTower && (this.path.length || this.task)) { // bajar de la torre antes de moverse
+    if (this.onTower && this.path.length) { // bajar de la torre solo para desplazarse; disparar desde arriba no la abandona
       const t = this.onTower; this.onTower = null; this.elev = 0; this.x = t.base.x; this.y = t.base.y;
       if (this.path.length) this.path = findPath(this.x, this.y, this.path[this.path.length - 1].x, this.path[this.path.length - 1].y, this.pathFlags()) || [];
     }
@@ -271,7 +271,7 @@ class Enemy {
     // de noche, lejos de la luz, se ve mucho menos (salvo con linterna)
     if (G.night && !this.R.light && !G.isLit(u.x, u.y)) { v.range *= 0.55; v.near *= 0.75; }
     if (d > v.range) return null;
-    if (d > 1.2 && Math.abs(angDiff(Math.atan2(u.y - this.y, u.x - this.x), this.face)) > v.half) return null;
+    if (d > 0.8 && Math.abs(angDiff(Math.atan2(u.y - this.y, u.x - this.x), this.face)) > v.half) return null; // por la espalda solo se te detecta a menos de 0,8
     if (!Level.los(this.x, this.y, u.x, u.y, this.elev > 0 || u.elev > 0)) return null;
     if (u.inBush && d > 2 && this.elev <= 0) return null;
     const near = d <= v.near;

@@ -474,19 +474,19 @@ const Render = {
     const T = { tG: raw('grass'), tG2: raw('grass2'), tD: raw('dirt'), tR: raw('road'), tF: raw('forest'), tV: raw('gravel'),
       nG: raw('grass_n'), nD: raw('dirt_n'), nR: raw('road_n'), nF: raw('forest_n'), tAO: ao, tCloud: this.cloudTex() };
     const tint = (this.weather && this.weather.tint) || [1, 1, 1];
-    this.groundUniforms = { uTime: { value: 0 }, uTint: { value: new THREE.Vector3(tint[0], tint[1], tint[2]) } };
+    this.groundUniforms = { uDesert: { value: this.M && this.M.border === 'rocks' ? 1 : 0 }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(tint[0], tint[1], tint[2]) } };
     mat.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, { sp1: { value: sp1 }, sp2: { value: sp2 }, mapSize: { value: new THREE.Vector2(W, H) }, uTime: this.groundUniforms.uTime, uTint: this.groundUniforms.uTint });
+      Object.assign(sh.uniforms, { sp1: { value: sp1 }, sp2: { value: sp2 }, mapSize: { value: new THREE.Vector2(W, H) }, uTime: this.groundUniforms.uTime, uTint: this.groundUniforms.uTint, uDesert: this.groundUniforms.uDesert });
       for (const k in T) sh.uniforms[k] = { value: T[k] };
       sh.vertexShader = 'varying vec2 vXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
-      sh.fragmentShader = `uniform sampler2D sp1, sp2, tG, tG2, tD, tR, tF, tV, nG, nD, nR, nF, tAO, tCloud; uniform vec2 mapSize; uniform float uTime; uniform vec3 uTint; varying vec2 vXZ;
+      sh.fragmentShader = `uniform sampler2D sp1, sp2, tG, tG2, tD, tR, tF, tV, nG, nD, nR, nF, tAO, tCloud; uniform vec2 mapSize; uniform float uTime; uniform float uDesert; uniform vec3 uTint; varying vec2 vXZ;
         vec3 lin(vec3 c) { return pow(c, vec3(2.2)); }
         vec4 gw1; vec4 gw2; vec2 guv;
         ` + sh.fragmentShader.replace('#include <map_fragment>', `
         vec2 suv = clamp(vXZ / mapSize, vec2(0.0), vec2(1.0));
         vec4 a = texture2D(sp1, suv); vec4 b = texture2D(sp2, suv);
         bool outside = vXZ.x < 0.0 || vXZ.y < 0.0 || vXZ.x > mapSize.x || vXZ.y > mapSize.y;
-        if (outside) { a = vec4(0.6, 0.0, 0.0, 0.0); b.r = 0.6; b.g = 0.0; b.a = 0.3; }
+        if (outside) { if (uDesert > 0.5) { a = vec4(0.0, 0.0, 0.0, 1.0); b = vec4(0.0, 0.0, 0.0, 0.4); } else { a = vec4(0.6, 0.0, 0.0, 0.0); b.r = 0.6; b.g = 0.0; b.a = 0.3; } }
         gw1 = a; gw2 = b;
         vec2 uv = vXZ / 3.6; guv = uv;
         vec3 g = lin(texture2D(tG, uv).rgb) * vec3(0.82, 0.92, 0.66);

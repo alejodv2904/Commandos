@@ -149,7 +149,7 @@ const Level = {
     if ('#fBRWcgovnkPLXVQlqZ'.includes(c)) return true;
     const fl = this._fl;
     if (fl && fl.avoidMines && this.mines.length && this.mineAt(tx, ty, true)) return true;
-    if (fl && fl.wide) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = this.at(tx + dx, ty + dy); if ('#fBRWcgovnkPLXQqZTCV'.includes(n)) return true; } }
+    if (fl && fl.wide) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = this.at(tx + dx, ty + dy); if ('#BRWcgovnkPLXQqZTCV'.includes(n)) return true; } } // las alambradas no impiden el paso de un vehículo
     return false;
   },
   opaque(tx, ty) { return '#BRvnPLXVqZ'.includes(this.at(tx, ty)); },

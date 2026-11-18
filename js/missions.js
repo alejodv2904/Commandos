@@ -28,7 +28,7 @@ const KITS = {
 const WEATHER = {
   day: { name: 'Día', sun: 0xffd8a8, sunInt: 2.3, sunOff: [-13, 21, -17], hemi: [0xc8dcff, 0x5a4a30, 0.35], sky: true, exposure: 0.72, bg: '#2a3320', tint: [1, 1, 1] },
   desert: { name: 'Día despejado', sun: 0xfff0d8, sunInt: 2.7, sunOff: [-10, 26, -12], hemi: [0xd8e8ff, 0x8a6a40, 0.45], sky: true, exposure: 0.7, bg: '#6a5838', tint: [1.18, 1.04, 0.84] },
-  night: { name: 'Noche despejada', night: true, sun: 0x8aa4ff, sunInt: 0.42, sunOff: [12, 22, -10], hemi: [0x3a4a7a, 0x10121a, 0.22], sky: false, exposure: 1.05, bg: '#05070c', tint: [0.9, 0.92, 1.05] }
+  night: { name: 'Noche despejada', night: true, sun: 0x9ab4ff, sunInt: 0.85, sunOff: [12, 22, -10], hemi: [0x4a5c96, 0x1a1e2c, 0.55], sky: false, exposure: 1.25, bg: '#05070c', tint: [0.9, 0.92, 1.05] }
 };
 
 // ---------- Misión clásica: Operación Depósito ----------
