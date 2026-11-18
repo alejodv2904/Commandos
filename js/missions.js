@@ -257,8 +257,8 @@ function buildProtocolo(A) {
 }
 
 const PROTOCOLO_ENEMIES = [
-  { x: 10.5, y: 29.5, patrol: [{ x: 10.5, y: 29.5, wait: 2 }, { x: 31.5, y: 29.5, wait: 2 }] },
-  { x: 34.5, y: 31.5, patrol: [{ x: 34.5, y: 31.5, wait: 2.5 }, { x: 11.5, y: 31.5, wait: 2.5 }] },
+  { x: 10.5, y: 28.5, patrol: [{ x: 10.5, y: 28.5, wait: 2 }, { x: 31.5, y: 28.5, wait: 2 }] },
+  { x: 34.5, y: 29.5, patrol: [{ x: 34.5, y: 29.5, wait: 2.5 }, { x: 11.5, y: 29.5, wait: 2.5 }] },
   { x: 34.5, y: 14.5, tag: 'backturned', sweep: 0.15, patrol: [{ x: 34.5, y: 14.5, face: -1.57 }] },
   { x: 5.5, y: 5.5, patrol: [{ x: 5.5, y: 5.5, wait: 3 }, { x: 15.5, y: 5.5, wait: 3 }] }
 ];
