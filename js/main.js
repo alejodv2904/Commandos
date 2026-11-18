@@ -227,6 +227,8 @@ const G = {
   dropBody(u) {
     const e = u.carry; if (!e) return;
     u.carry = null; e.carried = false; e.x = u.x; e.y = u.y;
+    const locker = Level.props.find(l => l.type === 'locker' && dist(u.x, u.y, l.x + 0.5, l.y + 0.5) < 1.9);
+    if (locker) { e.hidden = true; this.toast('Cuerpo escondido en el armario'); return; }
     const b = Level.buildingAt(u.x, u.y);
     if (Level.isBush(u.x, u.y) || (b && Level.at(Math.floor(u.x), Math.floor(u.y)) === '=')) { e.hidden = true; this.toast('Cuerpo escondido'); }
     else this.toast('Cuerpo soltado a la vista');

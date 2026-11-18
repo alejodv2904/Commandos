@@ -178,6 +178,15 @@ const Sprites = {
         x.strokeStyle = '#d9ab84'; x.lineWidth = 3; x.beginPath(); x.moveTo(22, 22); x.lineTo(32, 14); x.moveTo(22, 26); x.lineTo(34, 20); x.stroke();
         x.fillStyle = '#c8a040'; x.beginPath(); x.arc(38, 12, 5, 0, 7); x.fill();
         break;
+      case 'masterkey':
+        x.strokeStyle = '#e8d070'; x.lineWidth = 3.5; x.beginPath(); x.arc(15, 16, 9, 0, 7); x.moveTo(22, 23); x.lineTo(42, 42); x.moveTo(34, 34); x.lineTo(39, 29); x.moveTo(39, 39); x.lineTo(44, 34); x.stroke();
+        x.fillStyle = '#c04030'; x.beginPath(); x.arc(15, 16, 3, 0, 7); x.fill();
+        break;
+      case 'bark':
+        x.fillStyle = '#e8e2d6'; x.beginPath(); x.ellipse(18, 26, 10, 9, 0, 0, 7); x.fill(); x.beginPath(); x.moveTo(26, 22); x.lineTo(36, 25); x.lineTo(36, 31); x.lineTo(26, 32); x.fill();
+        x.fillStyle = '#111'; x.beginPath(); x.arc(15, 24, 1.8, 0, 7); x.fill();
+        x.strokeStyle = ink; x.lineWidth = 2.5; for (const r of [6, 11, 16]) { x.beginPath(); x.arc(38, 28, r, -0.7, 0.7); x.stroke(); }
+        break;
       case 'eye':
         x.strokeStyle = ink; x.lineWidth = 3; x.beginPath(); x.moveTo(6, 24); x.quadraticCurveTo(24, 6, 42, 24); x.quadraticCurveTo(24, 42, 6, 24); x.stroke();
         x.fillStyle = ink; x.beginPath(); x.arc(24, 24, 6, 0, 7); x.fill();
@@ -188,7 +197,31 @@ const Sprites = {
 
 
   // ---------------- RETRATOS ----------------
+  portraitDog(x, w, h) {
+    x.save();
+    const bg = x.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#6e6248'); bg.addColorStop(1, '#2e281c'); x.fillStyle = bg; x.fillRect(0, 0, w, h);
+    const k = w / 100; x.scale(k, k);
+    const H = h / k;
+    // collar y alforja
+    x.fillStyle = '#5a3a1e'; x.fillRect(22, H * 0.78, 56, 9); x.fillStyle = '#4a5a30'; x.fillRect(40, H * 0.82, 20, 14);
+    // cuello y cabeza en huevo
+    x.fillStyle = '#e8e2d6'; x.beginPath(); x.ellipse(50, H * 0.9, 30, 22, 0, Math.PI, 0); x.fill();
+    const g = x.createRadialGradient(44, H * 0.35, 4, 50, H * 0.45, 36); g.addColorStop(0, '#fbf7ee'); g.addColorStop(1, '#bdb6a8');
+    x.fillStyle = g; x.beginPath(); x.ellipse(50, H * 0.5, 25, 36, 0, 0, 7); x.fill();
+    // orejas, mancha, ojos, hocico
+    x.fillStyle = '#e8e2d6'; x.beginPath(); x.moveTo(30, H * 0.2); x.lineTo(24, H * 0.02); x.lineTo(40, H * 0.14); x.fill();
+    x.fillStyle = '#2a1d18'; x.beginPath(); x.moveTo(70, H * 0.2); x.lineTo(76, H * 0.02); x.lineTo(60, H * 0.14); x.fill();
+    x.beginPath(); x.ellipse(62, H * 0.38, 9, 10, 0.3, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.beginPath(); x.ellipse(38, H * 0.4, 4, 3, 0, 0, 7); x.ellipse(62, H * 0.38, 4, 3, 0, 0, 7); x.fill();
+    x.fillStyle = '#111'; x.beginPath(); x.arc(38, H * 0.4, 2, 0, 7); x.arc(62, H * 0.38, 2, 0, 7); x.fill();
+    x.fillStyle = '#1a1514'; x.beginPath(); x.ellipse(50, H * 0.66, 9, 6, 0, 0, 7); x.fill();
+    x.strokeStyle = '#6a5a4a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(50, H * 0.7); x.lineTo(50, H * 0.74); x.moveTo(42, H * 0.76); x.quadraticCurveTo(50, H * 0.79, 58, H * 0.76); x.stroke();
+    x.restore();
+    const vg = x.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(20,12,4,.55)'); x.fillStyle = vg; x.fillRect(0, 0, w, h);
+  },
+
   portrait(x, type, w, h) {
+    if (type === 'dog') return this.portraitDog(x, w, h);
     const P = PAL[type] || PAL.soldier;
     x.save();
     const bg = x.createLinearGradient(0, 0, 0, h);

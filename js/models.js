@@ -46,6 +46,9 @@ const MAT_DEFS = {
   trim: ['siding', '#5c3e24', 'siding', 0.8, 1.5],
   stone: ['concrete', '#8f887a', 'concrete', 0.95, 1.5],
   rockM: ['concrete', '#9a7f62', 'concrete', 0.95, 1.2],
+  bunker: ['concrete', '#7c828c', 'concrete', 0.85, 2.5, 0.1],
+  bunkerTop: ['concrete', '#a4aab4', null, 0.7, 2.5, 0.2],
+  locker: [null, '#59626e', null, 0.45, 1, 0.6],
   tiles: ['tiles', '#ffffff', 'tiles', 0.75, 1.8],
   slate: ['slate', '#9aa5b4', 'slate', 0.6, 1.6],
   metalRoof: ['metal', '#959a92', 'metal', 0.55, 2.2, 0.35],
@@ -485,6 +488,11 @@ const Props = {
         B.box('rubber', cx - 0.4, 0.6, z1 - 1.3, cx + 0.4, 1.2, z1 - 0.9); // motor de rotación
         break;
       }
+      case 'bollard': { // baliza de luz a ras de suelo para recintos interiores
+        this.cyl(B, 'gutter', cx, 0.5, cz, 0.09, 1.0, 'y', 10);
+        this.cyl(B, 'lamp', cx, 0.95, cz, 0.1, 0.12, 'y', 10);
+        break;
+      }
       case 'lamp': {
         B.box('gutter', cx - 0.05, 0, cz - 0.05, cx + 0.05, 3.0, cz + 0.05);
         B.box('gutter', cx - 0.05, 2.95, cz - 0.05, cx + 0.45, 3.02, cz + 0.05);
@@ -499,6 +507,14 @@ const Props = {
       }
       case 'stairs': {
         for (let k = 0; k < 4; k++) B.box('concrete', x0, 0, z0 + k * 0.25, x1, 0.2 + k * 0.12, z0 + (k + 1) * 0.25);
+        break;
+      }
+      case 'locker': {
+        B.box('locker', x0 + 0.1, 0, z0 + 0.12, x1 - 0.1, 1.75, z1 - 0.12);
+        B.box('gutter', x0 + 0.1, 1.75, z0 + 0.12, x1 - 0.1, 1.8, z1 - 0.12);
+        for (const f of [0.35, 0.7]) B.box('rubber', x0 + 0.14, f * 1.5, z1 - 0.13, x1 - 0.14, f * 1.5 + 0.05, z1 - 0.1); // rendijas de ventilación
+        B.box('lamp', x1 - 0.25, 0.85, z1 - 0.1, x1 - 0.2, 0.95, z1 - 0.08);
+        B.box('rubber', x0 + 0.46, 0.2, z1 - 0.1, x0 + 0.5, 1.6, z1 - 0.08);
         break;
       }
       case 'crate': {
@@ -921,5 +937,63 @@ const Soldier = {
       else { P.rifle.position.set(0, 0.62, -0.11); P.rifle.rotation.set(-0.35, 0, 0.6); }
     }
     P.carry.visible = !!s.carry;
+  }
+};
+
+
+// ---------------- PERRO ----------------
+// Bull terrier blanco con mancha oscura en un ojo, hecho con primitivas y patas articuladas.
+const Dog = {
+  mats: {},
+  mat(c, ghost, r) { if (ghost) return ghost; const k = c + (r || 0); return this.mats[k] || (this.mats[k] = new THREE.MeshStandardMaterial({ color: c, roughness: r === undefined ? 0.7 : r, envMapIntensity: 0.4 })); },
+
+  build(ghost) {
+    const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+    const M = (c, r) => this.mat(c, ghost, r), W = '#e8e2d6';
+    const add = (par, geo, mat, x, y, z, sx, sy, sz) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); if (sx) o.scale.set(sx, sy, sz); o.castShadow = !ghost; par.add(o); return o; };
+    // torso (eje +z hacia delante)
+    const torso = add(body, new THREE.CapsuleGeometry(0.15, 0.34, 4, 12), M(W), 0, 0.34, 0, 1, 1, 1); torso.rotation.x = Math.PI / 2;
+    add(body, new THREE.SphereGeometry(0.17, 14, 10), M(W), 0, 0.36, 0.2, 1, 0.95, 1.05);          // pecho ancho
+    add(body, new THREE.SphereGeometry(0.15, 12, 9), M(W), 0, 0.34, -0.22, 1, 0.95, 1);              // grupa
+    // cuello y cabeza ovalada
+    const neck = add(body, new THREE.CapsuleGeometry(0.075, 0.14, 4, 8), M(W), 0, 0.46, 0.34); neck.rotation.x = 0.7;
+    const head = new THREE.Group(); head.position.set(0, 0.52, 0.45); body.add(head);
+    add(head, new THREE.SphereGeometry(0.1, 14, 10), M(W), 0, 0, 0.02, 0.9, 0.95, 1.6);              // cráneo en huevo
+    add(head, new THREE.SphereGeometry(0.06, 10, 8), M('#1a1514', 0.4), 0, -0.035, 0.24, 1.1, 0.8, 0.9);   // trufa
+    add(head, new THREE.SphereGeometry(0.045, 10, 8), M('#2a1d18'), 0.062, 0.03, 0.12, 1, 1.2, 1.4);       // mancha del ojo
+    for (const sx of [-1, 1]) {
+      add(head, new THREE.SphereGeometry(0.012, 6, 5), M('#0a0a0a', 0.2), sx * 0.055, 0.045, 0.15);
+      const ear = add(head, new THREE.ConeGeometry(0.035, 0.1, 6), M(sx > 0 ? '#2a1d18' : W), sx * 0.055, 0.11, -0.02); ear.rotation.z = -sx * 0.2;
+    }
+    // patas articuladas
+    const legs = [];
+    for (const [lx, lz] of [[-0.09, 0.19], [0.09, 0.19], [-0.09, -0.2], [0.09, -0.2]]) {
+      const g = new THREE.Group(); g.position.set(lx, 0.3, lz); body.add(g);
+      add(g, new THREE.CapsuleGeometry(0.04, 0.2, 3, 8), M(W), 0, -0.14, 0);
+      add(g, new THREE.SphereGeometry(0.05, 8, 6), M('#d8d0c0'), 0, -0.29, 0.02, 1, 0.7, 1.4);
+      legs.push(g);
+    }
+    // cola y collar con alforja
+    const tail = new THREE.Group(); tail.position.set(0, 0.38, -0.34); body.add(tail);
+    const tc = add(tail, new THREE.ConeGeometry(0.04, 0.26, 7), M(W), 0, -0.1, -0.05); tc.rotation.x = -2.2;
+    add(body, new THREE.TorusGeometry(0.095, 0.022, 6, 14), M('#5a3a1e', 0.8), 0, 0.46, 0.3).rotation.x = 0.7;
+    add(body, new THREE.BoxGeometry(0.2, 0.09, 0.07), M('#4a5a30', 0.9), 0, 0.4, 0.3);
+    root.userData = { body, legs, tail, head };
+    return root;
+  },
+
+  animate(m, st, dt) {
+    const U = m.userData;
+    m.position.set(st.x, st.elev || 0, st.y);
+    m.rotation.set(0, Math.PI / 2 - st.face, 0);
+    const sw = st.moving ? Math.sin(st.anim * 3.4) : 0, f = st.moving ? 0.9 : 0;
+    U.legs[0].rotation.x = sw * f; U.legs[3].rotation.x = sw * f;        // diagonales sincronizadas
+    U.legs[1].rotation.x = -sw * f; U.legs[2].rotation.x = -sw * f;
+    U.body.position.y = st.moving ? Math.abs(Math.cos(st.anim * 3.4)) * 0.025 : 0;
+    U.body.rotation.set(0, 0, 0);
+    if (st.lying) { U.body.rotation.z = Math.PI / 2; U.body.position.y = 0.16; U.legs.forEach(l => { l.rotation.x = 0.3; }); }
+    U.tail.rotation.z = Math.sin(st.t * (st.moving ? 14 : 6)) * 0.5;
+    U.head.rotation.x = st.moving ? 0.1 : Math.sin(st.t * 1.3) * 0.08;
+    if (st.bark) { U.head.rotation.x = -0.45; U.body.rotation.x = -0.12; }
   }
 };

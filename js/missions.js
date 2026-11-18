@@ -16,6 +16,8 @@ const Obj = {
   },
   reachExit(text) { return { text, final: true, check: G => G.units.every(u => u.alive && !u.dying && Level.inExit(u.x, u.y)) }; },
   noAlarm(text) { return { text, check: G => G.stats.alarms === 0 && G.stats.bodies === 0, live: true }; },
+  zone(type, x0, y0, x1, y1, text) { return { text, check: G => G.units.some(u => u.alive && u.type === type && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1) }; },
+  custom(fn, text) { return { text, check: fn }; },
   hasItem(id, text) { return { text, check: G => G.units.some(u => u.alive && Inv.find(u.inv, id)) }; }
 };
 
@@ -28,6 +30,7 @@ const KITS = {
 const WEATHER = {
   day: { name: 'Día', sun: 0xffd8a8, sunInt: 2.3, sunOff: [-13, 21, -17], hemi: [0xc8dcff, 0x5a4a30, 0.35], sky: true, exposure: 0.72, bg: '#2a3320', tint: [1, 1, 1] },
   desert: { name: 'Día despejado', sun: 0xfff0d8, sunInt: 2.7, sunOff: [-10, 26, -12], hemi: [0xd8e8ff, 0x8a6a40, 0.45], sky: true, exposure: 0.7, bg: '#6a5838', tint: [1.18, 1.04, 0.84] },
+  indoor: { name: 'Interior climatizado', indoor: true, night: true, sun: 0xaab8d0, sunInt: 0.75, sunOff: [10, 22, -8], hemi: [0x8a98b4, 0x2a3038, 0.95], sky: false, exposure: 1.3, bg: '#030405', tint: [1, 1, 1] },
   night: { name: 'Noche despejada', night: true, sun: 0x9ab4ff, sunInt: 0.85, sunOff: [12, 22, -10], hemi: [0x5a6ea8, 0x232a3c, 0.8], sky: false, exposure: 1.3, bg: '#05070c', tint: [0.9, 0.92, 1.05] }
 };
 
@@ -226,10 +229,61 @@ const FREC_ENEMIES = [
   { x: 8.5, y: 9.5, rank: 'sergeant', patrol: [{ x: 8.5, y: 9.5, wait: 2 }, { x: 18.5, y: 3.5, wait: 2 }] }
 ];
 
+// ---------- Entrenamiento 1: Protocolo Sombra ----------
+// Instalación subterránea de 5 salas (de sur a norte): A (inicio), pasillo B vigilado, C (Asalto encerrado), D (salida).
+function buildProtocolo(A) {
+  const W = A.W, H = A.H, rng = A.rng;
+  A.wall(0, 0, W - 1, 0); A.wall(0, H - 1, W - 1, H - 1); A.wall(0, 0, 0, H - 1); A.wall(W - 1, 0, W - 1, H - 1);
+  for (const y of [10, 26, 34]) A.wall(1, y, W - 2, y);
+  A.gap(6, 34, 'D');                                   // puerta de la sala A al pasillo
+  A.gap(20, 26, 'L', { from: 'n' });                   // puerta blindada: solo se fuerza desde el interior de la sala C
+  A.gap(30, 26, 'H');                                  // rejilla estrecha (perro)
+  for (const x of [34, 35, 36]) A.gap(x, 26, 'C');     // muro escalable (Ladrón)
+  A.gap(20, 10, 'L');                                  // salida norte: requiere la llave maestra
+  // sala A
+  for (const [x, y] of [[12, 40], [13, 40], [26, 37], [27, 37], [33, 42], [34, 42], [8, 43]]) A.prop('crate', x, y, 1, 1, 'c');
+  for (const [x, y] of [[10, 38], [30, 39]]) { A.prop('bollard', x, y, 1, 1, null); A.light(x + 0.5, y + 0.5, { r: 3.6, h: 1.4 }); }
+  // pasillo B: farolas con tramos de sombra (x 18..32 sin luz)
+  for (const [x, y] of [[8, 29], [15, 29], [36, 29], [4, 32]]) { A.prop('bollard', x, y, 1, 1, null); A.light(x + 0.5, y + 0.5, { r: 3.6, h: 1.4 }); }
+  for (const [x, y] of [[22, 32], [23, 32], [24, 32], [28, 28], [29, 28]]) A.prop('crate', x, y, 1, 1, 'c');
+  // sala C
+  for (const [x, y] of [[10, 20], [11, 20], [24, 15], [25, 15], [14, 13], [26, 22], [27, 22]]) A.prop('crate', x, y, 1, 1, 'c');
+  A.locker(37, 12); A.locker(37, 13);
+  for (const [x, y] of [[8, 22], [20, 21], [31, 21], [22, 13]]) { A.prop('bollard', x, y, 1, 1, null); A.light(x + 0.5, y + 0.5, { r: 3.6, h: 1.4 }); }
+  A.prop('barrels', 3, 12, 1, 1, 'o'); A.prop('barrels', 3, 24, 1, 1, 'o');
+  // sala D
+  for (const [x, y] of [[8, 3], [9, 3], [32, 8], [33, 8]]) A.prop('crate', x, y, 1, 1, 'c');
+  for (const [x, y] of [[18, 7], [26, 4], [30, 7]]) { A.prop('bollard', x, y, 1, 1, null); A.light(x + 0.5, y + 0.5, { r: 3.6, h: 1.4 }); }
+}
+
+const PROTOCOLO_ENEMIES = [
+  { x: 10.5, y: 29.5, patrol: [{ x: 10.5, y: 29.5, wait: 2 }, { x: 31.5, y: 29.5, wait: 2 }] },
+  { x: 34.5, y: 31.5, patrol: [{ x: 34.5, y: 31.5, wait: 2.5 }, { x: 11.5, y: 31.5, wait: 2.5 }] },
+  { x: 34.5, y: 14.5, tag: 'backturned', sweep: 0.15, patrol: [{ x: 34.5, y: 14.5, face: -1.57 }] },
+  { x: 5.5, y: 5.5, patrol: [{ x: 5.5, y: 5.5, wait: 3 }, { x: 15.5, y: 5.5, wait: 3 }] }
+];
+
 // ---------- Catálogo de la campaña ----------
 const MISSIONS = [
-  { id: 't1', chapter: 'Entrenamiento', num: 'E1', name: 'Protocolo Sombra', place: 'Instalación subterránea en los Andes', squad: 'Ladrón, Asalto y Perro táctico',
-    desc: 'Circuito de 5 salas con conductos de ventilación, muros escalables y puertas cerradas. Aprende sombras, ganzúas, el perro mensajero y a esconder cuerpos en armarios.' },
+  { id: 't1', chapter: 'Entrenamiento', num: 'E1', name: 'Protocolo Sombra', place: 'Instalación subterránea en los Andes', playable: true,
+    desc: 'Circuito de salas con un pasillo vigilado, un muro escalable, una rejilla estrecha y puertas blindadas. Aprende a usar las sombras, las ganzúas, el perro mensajero y a esconder cuerpos en armarios.',
+    W: 40, H: 46, seed: 51, baseFloor: 'k', border: 'none', borderDone: true, trees: 0, weather: 'indoor', kits: 'night', grass: 0, par: 600,
+    exit: { x0: 25, y0: 2, x1: 31, y1: 7 },
+    squad: [
+      { type: 'thief', x: 4.5, y: 40.5, inv: [['lockpick', 0, 0], ['spike', 2, 0], ['cigs', 3, 0, 2], ['masterkey', 0, 1]] },
+      { type: 'beret', x: 6.5, y: 22.5, inv: [['knife', 0, 0], ['decoy', 2, 0, 2], ['rope', 0, 1, 2]] },
+      { type: 'dog', x: 6.5, y: 40.5, inv: [] }
+    ],
+    enemies: PROTOCOLO_ENEMIES, build: buildProtocolo,
+    objectives: [
+      Obj.zone('thief', 31, 27, 38, 33, 'Ladrón: cruza el pasillo vigilado usando las zonas de sombra y el cono lejano cuerpo a tierra'),
+      Obj.custom(() => Level.at(20, 26) === 'D', 'Ladrón: escala la pared norte del pasillo y abre con ganzúas la puerta blindada desde dentro'),
+      Obj.custom(G => { const a = G.units.find(u => u.type === 'beret'); return !!(a && a.alive && Inv.find(a.inv, 'masterkey')); }, 'Perro: pasa por la rejilla estrecha llevando la llave maestra del Ladrón hasta Asalto'),
+      Obj.custom(G => G.enemies.some(e => e.state === 'tied' && e.hidden), 'Asalto: atrae a un guardia con el señuelo, noquéalo, átalo y escóndelo en un armario metálico'),
+      Obj.reachExit('Reunir al equipo en la zona de extracción iluminada en verde')
+    ],
+    secondary: [Obj.noAlarm('No activar ninguna alarma ni dejar cuerpos a la vista')],
+    briefing: 'Instalación subterránea de pruebas en los Andes: iluminación artificial y mucho contraste. Los guardias ven poco fuera de las zonas iluminadas, así que muévete por las sombras y, en el cono lejano, cuerpo a tierra. El Ladrón (sube muros y abre cerraduras) y el Perro (pasa por rejillas y los guardias lo ignoran) deben liberar a Asalto, que está encerrado en la sala del centro. Pásale la llave maestra con el perro: arrastra el objeto de la mochila al retrato del compañero cuando estén juntos.' },
   { id: 't2', chapter: 'Entrenamiento', num: 'E2', name: 'Fuego Cruzado', place: 'Pueblo fantasma en un desierto árido', playable: true,
     desc: 'Puesto de control, campo minado tras una alambrada, una torre de agua con vista a las azoteas y un camión militar para escapar por el cañón.',
     W: 60, H: 40, seed: 77, baseFloor: 'a', border: 'rocks', trees: 0, weather: 'desert', kits: 'desert', grass: 0.15,

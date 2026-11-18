@@ -13,7 +13,7 @@ const Level = {
   depot: { x: 57.5, y: 31.5, destroyed: false },
   exit: { x0: 2, y0: 2, x1: 7, y1: 7 },
   startPositions: [],
-  loot: [], mines: [], interacts: [], lights: [], spots: [], vehicles: [], targets: [], smokes: [], towers: [],
+  loot: [], mines: [], interacts: [], lights: [], spots: [], vehicles: [], targets: [], smokes: [], towers: [], doorFrom: {}, indoor: false,
   borderStyle: 'forest',
 
   // Rejilla lógica:
@@ -22,7 +22,8 @@ const Level = {
   //  C  acantilado o muro escalable (solo el Ladrón)      X  muro que se puede volar
   //  B  depósito      R  borde       c  cajas  g  sacos  o  bidones  v  vehículo  n  tienda  k  torre
   //  V  vehículo aparcado (conducible)  Q  torre de agua  l  farola  q  roca  Z  maquinaria  s  ruinas
-  // Suelo: g hierba, d tierra, a arena, y grava, r camino, p tablones, w agua, b puente, m bosque
+  //  H  rejilla estrecha (solo el perro)   K  armario metálico (esconde cuerpos)
+  // Suelo: g hierba, d tierra, a arena, y grava, r camino, p tablones, w agua, b puente, m bosque, k hormigón interior
 
   // Construye el mapa de una misión: reinicia todo y llama al constructor de la misión
   build(M) {
@@ -32,7 +33,8 @@ const Level = {
     for (let y = 0; y < H; y++) { this.grid.push(new Array(W).fill('.')); this.floor.push(new Array(W).fill(M.baseFloor || 'g')); }
     this.depot.destroyed = false;
     this.buildings = []; this.props = []; this.trees = []; this.border = []; this.rocks = [];
-    this.loot = []; this.mines = []; this.interacts = []; this.lights = []; this.spots = []; this.vehicles = []; this.targets = []; this.smokes = []; this.towers = [];
+    this.loot = []; this.mines = []; this.interacts = []; this.lights = []; this.spots = []; this.vehicles = []; this.targets = []; this.smokes = []; this.towers = []; this.doorFrom = {};
+    this.indoor = !!(WEATHER[M.weather] && WEATHER[M.weather].indoor);
     this.borderStyle = M.border || 'forest';
     this.exit = Object.assign({}, M.exit);
     this.startPositions = M.squad.map(s => [s.x, s.y]);
@@ -81,6 +83,10 @@ const Level = {
           if (g[y][x] === '.' && 'gdma'.includes(f[y][x])) g[y][x] = 'T';
         }
       },
+      wall(x0, y0, x1, y1) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) A.setG(x, y, '#'); },
+      // abre un vano en un muro: 'D' puerta, 'L' cerrada con llave, 'H' rejilla (perro), 'C' muro escalable
+      gap(x, y, kind, opt) { A.setG(x, y, kind); if (opt && opt.from) L.doorFrom[x + ',' + y] = opt.from; },
+      locker(x, y) { A.setG(x, y, 'K'); L.props.push({ type: 'locker', x, y, w: 1, h: 1, seed: (x * 7 + y * 13) % 97 }); },
       rock(x, y, s) { A.setG(Math.floor(x), Math.floor(y), 'q'); L.rocks.push({ x, y, s: s || 1, v: (rng() * 6) | 0 }); },
       loot(name, x, y, items, extra) { const l = Object.assign({ name, x, y, items }, extra || {}); L.loot.push(l); return l; },
       interact(id, name, x, y, opt) { const it = Object.assign({ id, name, x, y, time: 3, done: false }, opt || {}); L.interacts.push(it); return it; },
@@ -146,13 +152,14 @@ const Level = {
   solid(tx, ty) {
     const c = this.at(tx, ty);
     if (c === 'C') return !(this._fl && this._fl.climb);
-    if ('#fBRWcgovnkPLXVQlqZ'.includes(c)) return true;
+    if (c === 'H') return !(this._fl && this._fl.small);
+    if ('#fBRWcgovnkPLXVQlqZK'.includes(c)) return true;
     const fl = this._fl;
     if (fl && fl.avoidMines && this.mines.length && this.mineAt(tx, ty, true)) return true;
-    if (fl && fl.wide) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = this.at(tx + dx, ty + dy); if ('#BRWcgovnkPLXQqZTCV'.includes(n)) return true; } } // las alambradas no impiden el paso de un vehículo
+    if (fl && fl.wide) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = this.at(tx + dx, ty + dy); if ('#BRWcgovnkPLXQqZTCVKH'.includes(n)) return true; } } // las alambradas no impiden el paso de un vehículo
     return false;
   },
-  opaque(tx, ty) { return '#BRvnPLXVqZ'.includes(this.at(tx, ty)); },
+  opaque(tx, ty) { return '#BRvnPLXVqZKC'.includes(this.at(tx, ty)); },
   mineAt(tx, ty, onlyRevealed) { return this.mines.find(m => !m.dead && Math.floor(m.x) === tx && Math.floor(m.y) === ty && (!onlyRevealed || m.revealed)) || null; },
   inSmoke(x, y) { return this.smokes.some(s => s.t > 0 && Math.hypot(s.x - x, s.y - y) < s.r); },
   isWall(tx, ty) { return this.at(tx, ty) === '#'; },

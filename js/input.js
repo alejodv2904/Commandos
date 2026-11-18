@@ -3,7 +3,7 @@
 
 // Una tecla puede corresponder a varios objetos: se usa el que tenga el comando
 const KEY_ACTIONS = { q: ['punch'], a: ['knife', 'spike', 'syringe'], s: ['pistol', 'pistolS'], d: ['sniper'], g: ['grenade'], f: ['medkit'], c: ['cigs'], v: ['wine'], e: ['cutters'],
-  w: ['examine'], t: ['talk'], k: ['lockpick'], l: ['lipstick'], r: ['steal'], z: ['smoke'], m: ['detector'] };
+  w: ['examine'], t: ['talk'], b: ['bark'], k: ['lockpick'], l: ['lipstick'], r: ['steal'], z: ['smoke'], m: ['detector'] };
 
 const Input = {
   G: null,
@@ -139,6 +139,11 @@ const Input = {
     const G = this.G, p = G.primary(); if (!p || p.dying) return;
     if (!this.has(p, id)) { G.toast(`${p.def.name} no tiene ${(actionDef(id) || {}).name || id}`, true); return; }
     const d = actionDef(id);
+    if (id === 'bark') {
+      if ((p.barkT || 0) > 0) return;
+      p.barkT = 2.5; G.noise(p.x, p.y, 6.5); G.fx.push({ k: 'ring', x: p.x, y: p.y, r: 3, t: 0.8, dur: 0.8 }); Sfx.play('whistle', p.x, p.y);
+      G.toast('Guau: los guardias cercanos van a investigar'); return;
+    }
     if (id === 'detector') { p.detector = !p.detector; G.toast(p.detector ? 'Detector activado: revela minas a unos 8 m' : 'Detector apagado'); HUD.dirty = true; return; }
     if (d.target === 'self') { Inv.take(p.inv, id); p.heal(p.maxHp * 0.25); G.toast('Salud recuperada'); HUD.dirty = true; return; }
     if (d.target === 'wear') { this.wearUniform(!p.disguised); return; }
@@ -252,8 +257,13 @@ const Input = {
       const it = Level.interacts.find(i => (!i.done || i.repeat) && dist(i.x, i.y, w.x, w.y) < 1.4);
       if (it) { p.task = { kind: 'interact', it, x: it.x, y: it.y }; p.path = []; return; }
       if (Level.at(Math.floor(w.x), Math.floor(w.y)) === 'L' || [[0, 1], [0, -1], [1, 0], [-1, 0]].some(([a, b]) => Level.at(Math.floor(w.x + a * 0.4), Math.floor(w.y + b * 0.4)) === 'L')) {
-        if (!Inv.find(p.inv, 'lockpick')) { G.toast('Puerta cerrada con llave: hacen falta las ganzúas del Ladrón', true); return; }
-        const t = this.resolveTarget(p, 'lockpick', sx, sy, w); if (t) { p.task = t; p.path = []; return; }
+        if (!Inv.find(p.inv, 'lockpick') && !Inv.find(p.inv, 'masterkey')) { G.toast('Puerta cerrada con llave: hacen falta ganzúas o la llave maestra', true); return; }
+        const t = this.resolveTarget(p, 'lockpick', sx, sy, w);
+        if (t) {
+          if (Level.doorFrom[t.tx + ',' + t.ty] && p.y > t.ty) { G.toast('Esta cerradura solo se puede forzar desde el otro lado: busca cómo entrar (escala el muro)', true); return; }
+          if (!Inv.find(p.inv, 'lockpick')) t.time = 1.2;
+          p.task = t; p.path = []; return;
+        }
       }
       if (p.carry) { p.task = { kind: 'drop', x: w.x, y: w.y }; p.path = findPath(p.x, p.y, w.x, w.y, p.pathFlags()) || []; p.task.x = p.path.length ? p.path[p.path.length - 1].x : p.x; p.task.y = p.path.length ? p.path[p.path.length - 1].y : p.y; return; }
       const body = this.bodyAt(sx, sy, ['dead', 'down', 'tied']);

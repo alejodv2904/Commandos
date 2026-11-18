@@ -30,6 +30,10 @@ const UNIT_DEFS = {
     name: 'Ladrón', hp: 70, speed: 2.6, carry: false, climb: true, quiet: true, abilities: ['punch', 'steal', 'examine'],
     inv: [4, 3, [['lockpick', 0, 0], ['spike', 2, 0], ['cigs', 3, 0, 2]]]
   },
+  dog: {
+    name: 'Perro táctico', hp: 70, speed: 3.4, carry: false, small: true, animal: true, quiet: true, abilities: ['bark'],
+    inv: [2, 2, []]
+  },
   seductress: {
     name: 'Seductora', hp: 75, speed: 2.3, carry: false, civilian: true, abilities: ['examine'],
     inv: [4, 2, [['lipstick', 0, 0], ['pistolS', 1, 0, 4], ['medkit', 0, 1, 3]]]
@@ -55,7 +59,7 @@ const ACTS = {
   cutters: { range: 1.3, time: 1.5, anim: 'plant', ok: t => Level.at(t.tx, t.ty) === 'f', run(u, t, G) { Level.grid[t.ty][t.tx] = '.'; G.cutFences.push([t.tx, t.ty]); Render.rebuildFences(); G.toast('Alambrada cortada'); } },
   examine: { range: 1.3, time: 1.0, anim: 'plant', ok: t => !!t.target, run(u, t, G) { G.loot(u, t.target); } },
   pistolS: { range: 7, los: true, time: 0.35, anim: 'aim', ok: t => t.target && t.target.state !== 'dead', run(u, t, G) { u.fire('pistolS', t.target, G); } },
-  lockpick:{ range: 1.5, time: 2.2, anim: 'plant', ok: t => Level.at(t.tx, t.ty) === 'L', run(u, t, G) { Level.grid[t.ty][t.tx] = 'D'; (G.unlocked = G.unlocked || []).push([t.tx, t.ty]); Render.unlockDoor(t.tx, t.ty); Sfx.play('plant', u.x, u.y); G.toast('Puerta abierta con las ganzúas'); } },
+  lockpick:{ range: 1.5, time: 2.2, anim: 'plant', ok: (t, u) => Level.at(t.tx, t.ty) === 'L' && (!Level.doorFrom[t.tx + ',' + t.ty] || u.y < t.ty), run(u, t, G) { Level.grid[t.ty][t.tx] = 'D'; (G.unlocked = G.unlocked || []).push([t.tx, t.ty]); Render.unlockDoor(t.tx, t.ty); Sfx.play('plant', u.x, u.y); G.toast('Puerta abierta con las ganzúas'); } },
   steal:   { range: 1.15, time: 1.2, anim: 'plant', ok: t => t.target && t.target.alive && t.target.state !== 'alert',
     run(u, t, G) {
       const e = t.target, back = Math.abs(angDiff(Math.atan2(u.y - e.y, u.x - e.x), e.face)) > 1.75;
@@ -115,7 +119,7 @@ class Commando {
     if (this.repathT <= 0 || !this.path.length) { this.path = findPath(this.x, this.y, tx, ty, this.pathFlags()) || []; this.repathT = 0.4; }
   }
 
-  pathFlags() { return { climb: !!this.def.climb, avoidMines: true }; }
+  pathFlags() { return { climb: !!this.def.climb, small: !!this.def.small, avoidMines: true }; }
 
   startBusy(t, kind, cb) { this.path = []; this.busyT = t; this.busyTotal = t; this.busyKind = kind; this.busyCb = cb; }
   faceTo(x, y) { this.face = Math.atan2(y - this.y, x - this.x); }
@@ -150,6 +154,8 @@ class Commando {
     if (this.inVehicle) { this.x = this.inVehicle.x; this.y = this.inVehicle.y; this.moving = false; return; }
     this.inBush = Level.isBush(this.x, this.y);
     this.moving = false;
+    if (!this.onTower) this.elev = Level.at(Math.floor(this.x), Math.floor(this.y)) === 'C' ? 1.3 : 0; // sobre un muro escalable
+    this.barkT = Math.max(0, (this.barkT || 0) - dt);
     if (this.onTower && this.path.length) { // bajar de la torre solo para desplazarse; disparar desde arriba no la abandona
       const t = this.onTower; this.onTower = null; this.elev = 0; this.x = t.base.x; this.y = t.base.y;
       if (this.path.length) this.path = findPath(this.x, this.y, this.path[this.path.length - 1].x, this.path[this.path.length - 1].y, this.pathFlags()) || [];
@@ -199,7 +205,7 @@ class Commando {
     if (dist(this.x, this.y, tx, ty) <= range && (!A.los || Level.los(this.x, this.y, tx, ty, high))) {
       this.task = null; this.path = [];
       if (A.range > 0.5) this.faceTo(tx, ty);
-      this.startBusy(A.time, A.anim || t.kind, () => { if (!A.ok || A.ok(t, this)) A.run(this, t, G); });
+      this.startBusy(t.time || A.time, A.anim || t.kind, () => { if (!A.ok || A.ok(t, this)) A.run(this, t, G); });
     } else this.chase(tx, ty, dt);
   }
 }
@@ -267,6 +273,7 @@ class Enemy {
   // Velocidad de detección de un comando (0 = no lo ve). Devuelve también si está en zona cercana.
   canSee(u) {
     if (!u.alive || u.dying || u.inVehicle) return null;
+    if (u.def && u.def.animal) return null; // los enemigos ignoran al perro (lo toman por un animal callejero)
     const v = this.vision(), d = dist(this.x, this.y, u.x, u.y);
     // de noche, lejos de la luz, se ve mucho menos (salvo con linterna)
     if (G.night && !this.R.light && !G.isLit(u.x, u.y)) { v.range *= 0.55; v.near *= 0.75; }

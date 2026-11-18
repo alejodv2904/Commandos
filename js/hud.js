@@ -65,8 +65,10 @@ const HUD = {
       inv.appendChild(el);
     });
     const abil = p.def.abilities.map(id => ({ id, ...ABILITIES[id] }));
-    abil.push({ id: 'prone', name: 'Cuerpo a tierra', key: 'Espacio', desc: 'Tumbado eres invisible en la zona oscura del cono. Muy lento.' });
-    abil.push({ id: 'cover', name: 'Cubrirse', key: 'X', desc: 'Prepara el arma y dispara al primer enemigo que entre en la línea de tiro.' });
+    if (!p.def.animal) {
+      abil.push({ id: 'prone', name: 'Cuerpo a tierra', key: 'Espacio', desc: 'Tumbado eres invisible en la zona oscura del cono. Muy lento.' });
+      abil.push({ id: 'cover', name: 'Cubrirse', key: 'X', desc: 'Prepara el arma y dispara al primer enemigo que entre en la línea de tiro.' });
+    }
     for (const a of abil) {
       const b = document.createElement('div');
       b.className = 'ab'; b.dataset.id = a.id; b.title = `${a.name} [${a.key}] — ${a.desc}`;
@@ -140,7 +142,8 @@ const HUD = {
       x.font = '12px "Special Elite", monospace'; x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 3; x.textAlign = 'left';
       x.strokeText(label, px + 6, py + 12); x.fillText(label, px + 6, py + 12);
     };
-    if (!Level.depot.destroyed) flag(Level.depot.x, Level.depot.y, '#d03020', 'Depósito (principal)');
+    for (const t of Level.targets) if (!t.destroyed) flag(t.prop.x + t.prop.w / 2, t.prop.y + t.prop.h / 2, '#d03020', t.id === 'depot' ? 'Depósito (principal)' : 'Objetivo (principal)');
+    for (const it of Level.interacts) if (!it.done && !it.climb) flag(it.x, it.y, '#d03020', it.name);
     const sec = Level.loot.find(l => l.secondary);
     if (sec && sec.items.length) flag(sec.x, sec.y, '#e8c030', 'Documentos (opcional)');
     flag((Level.exit.x0 + Level.exit.x1 + 1) / 2, Level.exit.y1 + 1, '#3a8ae0', 'Extracción');

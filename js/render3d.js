@@ -308,7 +308,7 @@ const Render = {
     this.level.add(pb.build());
     this.fenceMesh = null; this.rebuildFences();
     for (const t of Level.targets) this.refreshTarget(t, true);
-    this.buildDoors(); this.buildLights(); this.buildVehicles();
+    this.buildWalls(); this.buildDoors(); this.buildLights(); this.buildVehicles();
     // vegetación
     const vb = new Batch();
     Level.trees.forEach((t, i) => t.pine ? Veg.pine(vb, t.x, t.y, i * 13 + 5, 1.05) : Veg.oak(vb, t.x, t.y, i * 17 + 3, 1.0 + (i % 3) * 0.1));
@@ -316,15 +316,15 @@ const Render = {
     // la baja en los lados más cercanos a la cámara para no tapar la acción.
     const side = (x, z) => x < 0.6 ? 'w' : x > Level.W - 0.6 ? 'e' : z < 0.6 ? 'n' : 's';
     const S = {}; for (const k of ['n', 's', 'e', 'w']) S[k] = { tall: new Batch(), low: new Batch() };
-    const rocky = Level.borderStyle === 'rocks';
-    Level.border.forEach((t, i) => {
+    const rocky = Level.borderStyle === 'rocks', none = Level.borderStyle === 'none';
+    if (!none) Level.border.forEach((t, i) => {
       const k = side(t.x, t.y);
       if (rocky) { Props.rock(S[k].tall, t.x, t.y, 1.5 + (i % 4) * 0.35, i, 1.6); Props.rock(S[k].low, clamp(t.x, 0.4, Level.W - 0.4), clamp(t.y, 0.4, Level.H - 0.4), 0.8, i + 50); return; }
       if (t.pine) Veg.pine(S[k].tall, t.x, t.y, i * 11 + 1, 1.25); else Veg.oak(S[k].tall, t.x, t.y, i * 7 + 9, 1.2);
       Veg.bush(S[k].low, clamp(t.x, 0.4, Level.W - 0.4), clamp(t.y, 0.4, Level.H - 0.4), i * 5 + 2);
     });
     const fr = mulberry32(77);
-    for (let z = -12; z < Level.H + 12; z += 1.6) for (let x = -12; x < Level.W + 12; x += 1.6) {
+    if (!none) for (let z = -12; z < Level.H + 12; z += 1.6) for (let x = -12; x < Level.W + 12; x += 1.6) {
       if (x > -0.5 && x < Level.W + 0.5 && z > -0.5 && z < Level.H + 0.5) continue;
       const px = x + (fr() - 0.5) * 1.2, pz = z + (fr() - 0.5) * 1.2, r1 = fr(), r2 = fr();
       const k = px < 0 && pz > 0 && pz < Level.H ? 'w' : px > Level.W && pz > 0 && pz < Level.H ? 'e' : pz < 0 ? 'n' : 's';
@@ -358,11 +358,41 @@ const Render = {
     if (!initial) { const p = t.prop; this.decal('scorch', p.x + p.w / 2, p.y + p.h / 2, Math.max(p.w, p.h) * 0.8); this.bakeMini(); }
   },
 
+  // Paredes de recintos interiores: muros, rejillas, muros escalables y dinteles
+  buildWalls() {
+    const B = new Batch(), r = mulberry32(31);
+    for (let ty = 0; ty < Level.H; ty++) for (let tx = 0; tx < Level.W; tx++) {
+      const c = Level.at(tx, ty);
+      if (!'#CHDL'.includes(c) || Level.buildingAt(tx, ty)) continue;
+      if (c === 'D' && !Level.indoor) continue;
+      const x0 = tx, x1 = tx + 1, z0 = ty, z1 = ty + 1, H = 1.8;
+      if (c === '#') {
+        B.box('bunker', x0, 0, z0, x1, H, z1); B.box('bunkerTop', x0 - 0.02, H, z0 - 0.02, x1 + 0.02, H + 0.08, z1 + 0.02);
+        if (Level.at(tx, ty + 1) !== '#' && r() < 0.5) B.box('gutter', x0 + 0.15, 0.3, z1, x1 - 0.15, 0.38, z1 + 0.03); // tubería
+      } else if (c === 'C') { // muro escalable de 4 m: se dibuja bajo para que el Ladrón se vea al trepar
+        B.box('bunker', x0, 0, z0, x1, 1.3, z1); B.box('red', x0, 1.3, z0, x1, 1.36, z1);
+        for (let k = 0; k < 4; k++) B.box('gutter', x0 + 0.15 + k * 0.23, 0.05, z1, x0 + 0.19 + k * 0.23, 1.3, z1 + 0.04);
+      } else if (c === 'H') { // rejilla estrecha a ras de suelo
+        B.box('bunker', x0, 0, z0, x1, 0.38, z1); B.box('bunker', x0, 1.1, z0, x1, H, z1); B.box('bunkerTop', x0 - 0.02, H, z0 - 0.02, x1 + 0.02, H + 0.08, z1 + 0.02);
+        for (let k = 0; k < 6; k++) B.box('wire', x0 + 0.06 + k * 0.17, 0.38, z0 + 0.46, x0 + 0.1 + k * 0.17, 1.1, z0 + 0.54);
+      } else if (c === 'D') { // vano: dintel y jambas
+        B.box('bunkerTop', x0, 1.35, z0, x1, H + 0.08, z1); B.box('gutter', x0, 1.3, z0 + 0.4, x1, 1.36, z0 + 0.6);
+      } else if (c === 'L') { B.box('bunker', x0, 1.55, z0, x1, H + 0.08, z1); }
+    }
+    this.level.add(B.build());
+  },
+
   // Hojas de puerta en las puertas cerradas con llave
   buildDoors() {
     for (let ty = 0; ty < Level.H; ty++) for (let tx = 0; tx < Level.W; tx++) {
       if (Level.at(tx, ty) !== 'L') continue;
-      const b = new Batch(); b.box('door', tx + 0.05, 0, ty + 0.62, tx + 0.95, 1.25, ty + 0.72); b.box('gutter', tx + 0.72, 0.55, ty + 0.7, tx + 0.8, 0.65, ty + 0.78);
+      const b = new Batch();
+      if (Level.indoor) { // puerta blindada: hoja a ras del muro con franja de aviso y lector
+        b.box('tank', tx + 0.03, 0, ty + 0.3, tx + 0.97, 1.55, ty + 0.7);
+        b.box('red', tx + 0.03, 0.9, ty + 0.28, tx + 0.97, 1.0, ty + 0.72);
+        b.box('lamp', tx + 0.8, 1.15, ty + 0.72, tx + 0.9, 1.25, ty + 0.75);
+        const m = b.build(); this.level.add(m); this.doorPanels[tx + ',' + ty] = m; continue;
+      } b.box('door', tx + 0.05, 0, ty + 0.62, tx + 0.95, 1.25, ty + 0.72); b.box('gutter', tx + 0.72, 0.55, ty + 0.7, tx + 0.8, 0.65, ty + 0.78);
       const m = b.build(); this.level.add(m); this.doorPanels[tx + ',' + ty] = m;
     }
   },
@@ -447,7 +477,7 @@ const Render = {
   buildGround() {
     const W = Level.W, H = Level.H, S = 8, PW = W * S, PH = H * S;
     const F = Level.floor, NAT = { g: 1, d: 1, m: 1, a: 1 };
-    const ch = { g: 0, d: 1, y: 2, r: 3, m: 4, w: 5, b: 5, p: 1, a: 3 };
+    const ch = { g: 0, d: 1, y: 2, r: 3, m: 4, w: 5, b: 5, p: 1, a: 3, k: 2 };
     const id = new Uint8Array(PW * PH);
     for (let py = 0; py < PH; py++) for (let px = 0; px < PW; px++) {
       const wx = (px + 0.5) / S, wy = (py + 0.5) / S, tx = wx | 0, ty = wy | 0;
@@ -480,7 +510,7 @@ const Render = {
     const T = { tG: raw('grass'), tG2: raw('grass2'), tD: raw('dirt'), tR: raw('road'), tF: raw('forest'), tV: raw('gravel'),
       nG: raw('grass_n'), nD: raw('dirt_n'), nR: raw('road_n'), nF: raw('forest_n'), tAO: ao, tCloud: this.cloudTex() };
     const tint = (this.weather && this.weather.tint) || [1, 1, 1];
-    this.groundUniforms = { uDesert: { value: this.M && this.M.border === 'rocks' ? 1 : 0 }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(tint[0], tint[1], tint[2]) } };
+    this.groundUniforms = { uDesert: { value: Level.indoor ? 2 : (this.M && this.M.border === 'rocks' ? 1 : 0) }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(tint[0], tint[1], tint[2]) } };
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { sp1: { value: sp1 }, sp2: { value: sp2 }, mapSize: { value: new THREE.Vector2(W, H) }, uTime: this.groundUniforms.uTime, uTint: this.groundUniforms.uTint, uDesert: this.groundUniforms.uDesert });
       for (const k in T) sh.uniforms[k] = { value: T[k] };
@@ -505,6 +535,7 @@ const Render = {
         float sum = a.r + a.g + a.b + a.a + b.r + b.g + 0.0001;
         vec3 col = (g * a.r + dd * a.g + yy * a.b + rr * a.a + ff * b.r + ff * vec3(0.5, 0.45, 0.38) * b.g) / sum;
         col *= mix(0.78, 1.18, b.a) * uTint;
+        if (uDesert > 1.5) { col = vec3(dot(col, vec3(0.33))) * vec3(0.7, 0.74, 0.8); if (outside) col *= 0.03; }
         float occ = outside ? 0.85 : texture2D(tAO, suv).r;
         col *= mix(0.38, 1.0, occ);
         float cl = texture2D(tCloud, vXZ / 46.0 + vec2(uTime * 0.0045, uTime * 0.0021)).r;
@@ -633,7 +664,7 @@ const Render = {
 
   bakeMini() {
     const S = 4, m = makeCanvas(Level.W * S, Level.H * S), x = m.getContext('2d');
-    const col = { a: [176, 150, 108], g: [86, 110, 46], d: [130, 104, 68], y: [128, 118, 96], r: [160, 138, 98], p: [120, 90, 58], w: [46, 86, 94], b: [110, 80, 50], m: [40, 56, 28] };
+    const col = { k: [98, 102, 112], a: [176, 150, 108], g: [86, 110, 46], d: [130, 104, 68], y: [128, 118, 96], r: [160, 138, 98], p: [120, 90, 58], w: [46, 86, 94], b: [110, 80, 50], m: [40, 56, 28] };
     for (let ty = 0; ty < Level.H; ty++) for (let tx = 0; tx < Level.W; tx++) {
       const c = col[Level.floorAt(tx, ty)] || [90, 90, 90], v = (Noise.hash(tx, ty) - 0.5) * 14;
       x.fillStyle = `rgb(${c[0] + v | 0},${c[1] + v | 0},${c[2] + v | 0})`; x.fillRect(tx * S, ty * S, S, S);
@@ -679,6 +710,14 @@ const Render = {
       const oc = c.clone().sub(o), tca = oc.dot(d);
       if (tca > 0 && oc.lengthSq() - tca * tca < r * r) return true;
     }
+    if (Level.indoor) { // muros, armarios y rejillas del recinto
+      const ux = Math.floor(u.x), uz = Math.floor(u.y), base = (u.elev || 0);
+      for (let t = 0.3; t < 4; t += 0.25) {
+        const px = o.x + d.x * t, py = o.y + base + d.y * t, pz = o.z + d.z * t, tx = Math.floor(px), tz = Math.floor(pz), c = Level.at(tx, tz);
+        if ((tx === ux && tz === uz) || !'#KHCL'.includes(c)) continue;
+        if (py < (c === 'C' ? 1.3 : 1.8)) return true;
+      }
+    }
     return false;
   },
 
@@ -687,11 +726,12 @@ const Render = {
     if (!ent._m || ent._kind !== kind) {
       if (ent._m) { this.dyn.remove(ent._m); if (ent._g) this.dyn.remove(ent._g); }
       ent._kind = kind;
-      if (Chars.ready) { ent._c = Chars.build(kind, ghost ? this.ghostMat : null); ent._m = ent._c.root; ent._g = null; }
+      if (kind === 'dog') { ent._c = null; ent._m = Dog.build(); this.dyn.add(ent._m); if (ghost) { ent._g = Dog.build(this.ghostMat); ent._g.traverse(c => { c.renderOrder = 999; }); ent._g.visible = false; this.dyn.add(ent._g); } }
+      else if (Chars.ready) { ent._c = Chars.build(kind, ghost ? this.ghostMat : null); ent._m = ent._c.root; ent._g = null; }
       else { ent._c = null; ent._m = Soldier.build(kind); }
-      this.dyn.add(ent._m);
+      if (kind !== 'dog') this.dyn.add(ent._m);
       if (ghost && !ent._ring) {
-        if (!Chars.ready) { ent._g = Soldier.build(kind, this.ghostMat); ent._g.traverse(c => { c.renderOrder = 999; }); this.dyn.add(ent._g); }
+        if (!Chars.ready && kind !== 'dog') { ent._g = Soldier.build(kind, this.ghostMat); ent._g.traverse(c => { c.renderOrder = 999; }); this.dyn.add(ent._g); }
         const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.41, 32), new THREE.MeshBasicMaterial({ color: 0x78ff5a, transparent: true, opacity: 0.9, depthWrite: false }));
         ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; ring.renderOrder = 2; this.dyn.add(ring); ent._ring = ring;
         const line = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x78ff5a, transparent: true, opacity: 0.55 }));
@@ -779,7 +819,8 @@ const Render = {
 
   // Anima un soldado (modelo con esqueleto o, si no hay, el de primitivas)
   pose(ent, st, dt) {
-    if (ent._c) Chars.animate(ent._c, st, dt);
+    if (ent._kind === 'dog') { st.t = this.time; Dog.animate(ent._m, st, dt); if (ent._g) Dog.animate(ent._g, st, dt); }
+    else if (ent._c) Chars.animate(ent._c, st, dt);
     else { Soldier.pose(ent._m, st); ent._m.position.y = st.elev || 0; }
   },
 
@@ -820,11 +861,12 @@ const Render = {
       m.visible = u.alive && !u.inVehicle;
       const run = u.run && !u.prone && !u.carry && !u.disguised;
       const st = { x: u.x, y: u.y, face: u.face, moving: u.moving, running: run, speed: u.def.speed * (run ? 1.75 : 1) * (u.carry ? 0.55 : 1), anim: u.anim,
-        prone: u.prone && !u.dying, aim: u.busyKind === 'aim' || u.cover, busy: u.busyKind, carry: !!u.carry, lying: !u.alive || u.dying, side: 1, elev: u.elev };
+        prone: u.prone && !u.dying, aim: u.busyKind === 'aim' || u.cover, busy: u.busyKind, carry: !!u.carry, lying: !u.alive || u.dying, side: 1, elev: u.elev, bark: (u.barkT || 0) > 1.9 };
       this.pose(u, st, dt || 0.0001);
       if (!u.alive) { m.visible = true; }
       const hidden = u.alive && !u.dying && !u.inVehicle && this.occluded(u);
       if (u._c) u._c.ghosts.forEach(g => { g.visible = hidden; });
+      else if (u._kind === 'dog') { u._g.visible = hidden; }
       else { Soldier.pose(u._g, st); u._g.visible = hidden; }
       u._ring.visible = u.alive && u.selected;
       u._ring.position.set(u.x, 0.04 + u.elev, u.y);

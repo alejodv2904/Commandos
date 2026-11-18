@@ -26,6 +26,7 @@ const ITEMS = {
   smoke:   { name: 'Granada de humo', w: 1, h: 1, stack: true, key: 'Z', target: 'point', desc: 'Nube de humo de 15 s que corta la visión de los guardias.' },
   detector:{ name: 'Detector de minas', w: 2, h: 1, key: 'M', target: 'self', desc: 'Actívalo para revelar las minas cercanas. Shift + clic en una mina revelada para desactivarla.' },
   keys:    { name: 'Llaves del camión', w: 1, h: 1, target: null, desc: 'Permiten conducir el camión militar.' },
+  masterkey:{ name: 'Llave maestra', w: 1, h: 1, target: null, desc: 'Abre cualquier puerta metálica cerrada (Shift + clic en la puerta). El perro puede llevarla en su collar.' },
   codes:   { name: 'Códigos de frecuencia', w: 1, h: 1, target: null, desc: 'Objetivo secundario robado del bolsillo del Jefe de Comunicaciones.' }
 };
 
@@ -33,6 +34,7 @@ const ABILITIES = {
   punch:   { name: 'Puñetazo', key: 'Q', target: 'enemy', desc: 'Deja inconsciente a un enemigo unos 28 s. Átalo con una cuerda antes de que despierte.' },
   talk:    { name: 'Hablar', key: 'T', target: 'enemy', desc: 'Disfrazado, el Espía entretiene a un soldado: se queda mirándole mientras los demás pasan.' },
   examine: { name: 'Examinar', key: 'W', target: 'loot', desc: 'Registra cuerpos, cajas y muebles para recoger objetos.' },
+  bark:    { name: 'Ladrar', key: 'B', target: null, desc: 'Ladra para atraer la atención de los guardias cercanos (≈12 m).' },
   steal:   { name: 'Robar', key: 'R', target: 'enemy', desc: 'Roba del bolsillo de un guardia vivo acercándote por la espalda (o mientras está distraído).' }
 };
 
