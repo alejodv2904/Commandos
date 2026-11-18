@@ -33,9 +33,19 @@ const FX = {
     if (p.k === 'smoke' || p.k === 'dust') m.color.setStyle(p.rgb ? `rgb(${p.rgb})` : `rgb(${p.c | 0},${p.c | 0},${(p.c * 0.95) | 0})`);
     p.s = new THREE.Sprite(m); this.group.add(p.s);
     this.parts.push(p);
-    if (this.parts.length > 700) { this.kill(this.parts[0]); this.parts.shift(); }
+    if (this.parts.length > 950) { this.kill(this.parts[0]); this.parts.shift(); }
+  },
+  flakes(dt) {
+    if (!Render.snowing) return;
+    const t = Render.target; this._fa = (this._fa || 0) + dt * 190;
+    while (this._fa >= 1) {
+      this._fa--;
+      const r = 17 / Math.max(0.6, Render.zoom);
+      this.add({ k: 'flake', x: t.x + (Math.random() - 0.5) * r * 2.2, y: t.z + (Math.random() - 0.5) * r * 1.6, z: 7 + Math.random() * 3, vx: 2.6 + Math.random(), vy: 1.2 + Math.random() * 0.8, vz: -(3.2 + Math.random() * 1.5), life: 2.6, size: 0.05 + Math.random() * 0.07 });
+    }
   },
   update(dt) {
+    this.flakes(dt);
     for (const e of this.emitters) { e.acc = (e.acc || 0) + dt * e.rate; while (e.acc >= 1) { e.acc--; e.fn(); } }
     for (const p of this.parts) {
       p.t += dt; p.x += (p.vx || 0) * dt; p.y += (p.vy || 0) * dt; p.z += (p.vz || 0) * dt;
@@ -55,6 +65,7 @@ const FX = {
       else if (p.k === 'fire') { size = p.size * (1 - q * 0.5); a = 1 - q; }
       else if (p.k === 'flash') { a = 1 - q; }
       else if (p.k === 'debris') { size = 0.09; a = 1; }
+      else if (p.k === 'flake') { size = p.size; a = 0.85 * Math.min(1, p.t * 3, (p.life - p.t) * 3); }
       s.scale.set(size, size, 1); s.material.opacity = a;
     }
   },
@@ -150,7 +161,8 @@ const Render = {
     this.sunOff.set(w.sunOff[0], w.sunOff[1], w.sunOff[2]);
     this.hemi.color.setHex(w.hemi[0]); this.hemi.groundColor.setHex(w.hemi[1]); this.hemi.intensity = w.hemi[2];
     this.scene.background = new THREE.Color(w.bg);
-    this.finalPass.uniforms.exposure.value = w.exposure;
+    this.finalPass.uniforms.exposure.value = w.exposure; this.finalPass.uniforms.haze.value = w.haze || 0;
+    this.snowing = !!w.snow;
     this.buildEnvironment(!!w.night);
     this.updateCamera();
   },
@@ -164,10 +176,10 @@ const Render = {
     this.bloom = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), 0.32, 0.55, 0.92);
     c.addPass(this.bloom);
     this.finalPass = new THREE.ShaderPass({
-      uniforms: { tDiffuse: { value: null }, res: { value: new THREE.Vector2(w, h) }, exposure: { value: 0.72 }, time: { value: 0 }, tilt: { value: 1.0 } },
+      uniforms: { tDiffuse: { value: null }, res: { value: new THREE.Vector2(w, h) }, exposure: { value: 0.72 }, time: { value: 0 }, tilt: { value: 1.0 }, haze: { value: 0 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: `
-        uniform sampler2D tDiffuse; uniform vec2 res; uniform float exposure, time, tilt; varying vec2 vUv;
+        uniform sampler2D tDiffuse; uniform vec2 res; uniform float exposure, time, tilt, haze; varying vec2 vUv;
         vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
         vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
         float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -187,6 +199,7 @@ const Render = {
           c = mix(vec3(l), c, 1.08);
           c *= mix(vec3(0.93, 0.99, 1.06), vec3(1.07, 1.0, 0.88), smoothstep(0.05, 0.6, l));
           c = toSRGB(max(c, 0.0));
+          if (haze > 0.0) { float w = 0.5 + 0.5 * sin(vUv.x * 7.0 + time * 0.7 + sin(vUv.y * 5.0 - time * 0.4) * 2.0) * sin(vUv.y * 4.0 + time * 0.3); c = mix(c, vec3(0.82, 0.87, 0.93), haze * (0.10 + 0.16 * w) + haze * 0.10 * smoothstep(0.3, 1.0, length((vUv - 0.5) * vec2(1.3, 1.0)))); }
           c = (c - 0.5) * 1.12 + 0.5;
           vec2 q = vUv - 0.5; c *= mix(0.66, 1.0, smoothstep(0.82, 0.28, length(q * vec2(1.0, 1.2))));
           c += (hash(vUv * res + fract(time) * 37.0) - 0.5) * 0.028;
@@ -291,7 +304,8 @@ const Render = {
     this.decals = []; this.doorPanels = {}; this.targetMesh = {}; this.vehMesh = []; this.lampObjs = []; this.spotObjs = []; this.mineObjs = [];
     this.applyWeather(WEATHER[M.weather] || WEATHER.day);
     this.buildGround();
-    this.buildWater();
+    this.water = null; if (!M.snow) this.buildWater();
+    this.buildChasm(); this.bridgeMesh = null; this.initPrints();
     this.buildGrass();
     // edificios
     this.bld = Level.buildings.map(b => {
@@ -303,7 +317,7 @@ const Render = {
     const pb = new Batch();
     const tprops = new Set(Level.targets.map(t => t.prop));
     Level.props.forEach(p => { if (!tprops.has(p)) Props.build(pb, p); });
-    Props.bridges(pb);
+    this.rebuildBridges();
     Level.rocks.forEach((r, i) => Props.rock(pb, r.x, r.y, r.s, i));
     this.level.add(pb.build());
     this.fenceMesh = null; this.rebuildFences();
@@ -344,6 +358,71 @@ const Render = {
     this.bakeMini();
   },
 
+  // Puentes colgantes (se vuelven a construir al cortarlos)
+  rebuildBridges() {
+    if (this.bridgeMesh) { this.level.remove(this.bridgeMesh); this.bridgeMesh.traverse(c => c.geometry && c.geometry.dispose()); }
+    const bb = new Batch(); Props.bridges(bb);
+    this.bridgeMesh = bb.build(); this.level.add(this.bridgeMesh);
+    if (this.chasm) this.buildChasm();
+  },
+
+  // Abismo: el suelo se recorta (máscara) y se ve una garganta con paredes de roca y fondo en sombra
+  buildChasm() {
+    if (this.chasm) { this.level.remove(this.chasm); this.chasm.traverse(c => c.geometry && c.geometry.dispose()); this.chasm = null; }
+    const W = Level.W, H = Level.H, isY = (x, y) => Level.at(x, y) === 'Y';
+    const mask = this.chasmData || (this.chasmData = new Uint8Array(W * H * 4));
+    mask.fill(0); let any = false;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (isY(x, y)) { mask[(y * W + x) * 4] = 255; any = true; }
+    if (this.chasmTex) { this.chasmTex.image.data = mask; this.chasmTex.needsUpdate = true; }
+    if (!any) return;
+    const pos = [], col = [], DEP = 7, r = mulberry32(5);
+    const quad = (p0, p1, p2, p3, c0, c1) => { // p0,p1 arriba; p2,p3 abajo
+      for (const [i, c] of [[p0, c0], [p1, c0], [p2, c1], [p0, c0], [p2, c1], [p3, c1]]) { pos.push(i[0], i[1], i[2]); col.push(c[0], c[1], c[2]); }
+    };
+    const wall = (ax, az, bx, bz, v) => { // pared con degradado rápido a la oscuridad (se ve sobre todo la parte alta)
+      const top = [0.2 * v, 0.2 * v, 0.23 * v], mid = [0.06, 0.07, 0.1], bot = [0.02, 0.025, 0.04];
+      quad([ax, 0, az], [bx, 0, bz], [bx, -2.2, bz], [ax, -2.2, az], top, mid);
+      quad([ax, -2.2, az], [bx, -2.2, bz], [bx, -DEP, bz], [ax, -DEP, az], mid, bot);
+    };
+    for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
+      if (!isY(tx, ty)) continue;
+      const v = 0.85 + r() * 0.3;
+      if (!isY(tx, ty - 1)) wall(tx, ty, tx + 1, ty, v);
+      if (!isY(tx + 1, ty)) wall(tx + 1, ty + 1, tx + 1, ty, v);
+      if (!isY(tx, ty + 1)) wall(tx + 1, ty + 1, tx, ty + 1, v);
+      if (!isY(tx - 1, ty)) wall(tx, ty, tx, ty + 1, v);
+      const f = [0.02, 0.025, 0.04];
+      quad([tx, -DEP, ty], [tx + 1, -DEP, ty], [tx + 1, -DEP, ty + 1], [tx, -DEP, ty + 1], f, f);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    this.chasm = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })); this.level.add(this.chasm);
+  },
+
+  // Huellas en la nieve: decals instanciados en 3 tramos de edad (se aclaran hasta desaparecer a los 20 s)
+  initPrints() {
+    this.printMeshes = null;
+    if (!(this.M && this.M.snow)) return;
+    const g = new THREE.PlaneGeometry(0.3, 0.5); g.rotateX(-Math.PI / 2);
+    const map = Tex.canvas(32, 64, (x, w, h) => { x.clearRect(0, 0, w, h); x.fillStyle = '#fff'; x.beginPath(); x.ellipse(w / 2, h * 0.62, w * 0.34, h * 0.3, 0, 0, 6.3); x.fill(); x.beginPath(); x.ellipse(w / 2, h * 0.17, w * 0.28, h * 0.12, 0, 0, 6.3); x.fill(); }, false);
+    this.printMeshes = [0x3d4c62, 0x7a8aa0, 0xb4c0cf].map(c => {
+      const m = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: c, map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 400);
+      m.count = 0; m.frustumCulled = false; m.renderOrder = 3; this.level.add(m); return m;
+    });
+  },
+  updatePrints() {
+    const ms = this.printMeshes; if (!ms) return;
+    const d = new THREE.Object3D(), n = [0, 0, 0];
+    for (const p of Level.prints) {
+      if (p.t <= 0) continue;
+      const k = p.t > 12 ? 0 : p.t > 5 ? 1 : 2, m = ms[k]; if (n[k] >= 400) continue;
+      const a = p.a;
+      d.position.set(p.x + Math.sin(a) * 0.14 * p.side, 0.035, p.y - Math.cos(a) * 0.14 * p.side);
+      d.rotation.set(0, -a + Math.PI / 2, 0); d.updateMatrix(); m.setMatrixAt(n[k]++, d.matrix);
+    }
+    ms.forEach((m, k) => { m.count = n[k]; m.instanceMatrix.needsUpdate = true; });
+  },
+
   rebuildFences() {
     if (this.fenceMesh) { this.level.remove(this.fenceMesh); this.fenceMesh.traverse(c => c.geometry && c.geometry.dispose()); }
     const fb = new Batch(); Props.fences(fb);
@@ -367,7 +446,7 @@ const Render = {
       if (c === 'D' && !Level.indoor) continue;
       const x0 = tx, x1 = tx + 1, z0 = ty, z1 = ty + 1, H = 1.8;
       if (c === '#') {
-        B.box('bunker', x0, 0, z0, x1, H, z1); B.box('bunkerTop', x0 - 0.02, H, z0 - 0.02, x1 + 0.02, H + 0.08, z1 + 0.02);
+        B.box('bunker', x0, 0, z0, x1, H, z1); B.box(Level.snow ? 'white' : 'bunkerTop', x0 - 0.02, H, z0 - 0.02, x1 + 0.02, H + (Level.snow ? 0.16 : 0.08), z1 + 0.02);
         if (Level.at(tx, ty + 1) !== '#' && r() < 0.5) B.box('gutter', x0 + 0.15, 0.3, z1, x1 - 0.15, 0.38, z1 + 0.03); // tubería
       } else if (c === 'C') { // muro escalable de 4 m: se dibuja bajo para que el Ladrón se vea al trepar
         B.box('bunker', x0, 0, z0, x1, 1.3, z1); B.box('red', x0, 1.3, z0, x1, 1.36, z1);
@@ -476,8 +555,9 @@ const Render = {
 
   buildGround() {
     const W = Level.W, H = Level.H, S = 8, PW = W * S, PH = H * S;
-    const F = Level.floor, NAT = { g: 1, d: 1, m: 1, a: 1 };
-    const ch = { g: 0, d: 1, y: 2, r: 3, m: 4, w: 5, b: 5, p: 1, a: 3, k: 2 };
+    const F = Level.floor, NAT = { g: 1, d: 1, m: 1, a: 1, n: 1 };
+    const ch = { g: 0, d: 1, y: 2, r: 3, m: 4, w: 5, b: 5, p: 1, a: 3, k: 2, n: 0, e: 2, h: 1 };
+    if (this.M && this.M.snow) { ch.b = 1; ch.w = 1; }
     const id = new Uint8Array(PW * PH);
     for (let py = 0; py < PH; py++) for (let px = 0; px < PW; px++) {
       const wx = (px + 0.5) / S, wy = (py + 0.5) / S, tx = wx | 0, ty = wy | 0;
@@ -504,38 +584,42 @@ const Render = {
     }
     const mk = d => { const t = new THREE.DataTexture(d, PW, PH, THREE.RGBAFormat); t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t; };
     const sp1 = mk(d1), sp2 = mk(d2), ao = this.groundAO(S);
+    this.chasmData = new Uint8Array(W * H * 4); this.chasmTex = new THREE.DataTexture(this.chasmData, W, H, THREE.RGBAFormat); this.chasmTex.magFilter = this.chasmTex.minFilter = THREE.NearestFilter; this.chasmTex.needsUpdate = true;
     this.sp2 = sp2;
     const raw = n => Tex.raw(n);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0, envMapIntensity: 0.6 });
-    const T = { tG: raw('grass'), tG2: raw('grass2'), tD: raw('dirt'), tR: raw('road'), tF: raw('forest'), tV: raw('gravel'),
-      nG: raw('grass_n'), nD: raw('dirt_n'), nR: raw('road_n'), nF: raw('forest_n'), tAO: ao, tCloud: this.cloudTex() };
+    const snowy = !!(this.M && this.M.snow);
+    const T = { tG: raw(snowy ? 'snow' : 'grass'), tG2: raw(snowy ? 'snow' : 'grass2'), tD: raw('dirt'), tR: raw('road'), tF: raw(snowy ? 'snow' : 'forest'), tV: raw('gravel'),
+      nG: raw(snowy ? 'snow_n' : 'grass_n'), nD: raw('dirt_n'), nR: raw('road_n'), nF: raw(snowy ? 'snow_n' : 'forest_n'), tAO: ao, tChasm: this.chasmTex, tCloud: this.cloudTex() };
     const tint = (this.weather && this.weather.tint) || [1, 1, 1];
-    this.groundUniforms = { uDesert: { value: Level.indoor ? 2 : (this.M && this.M.border === 'rocks' ? 1 : 0) }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(tint[0], tint[1], tint[2]) } };
+    this.groundUniforms = { uDesert: { value: Level.indoor ? 2 : (snowy ? 3 : (this.M && this.M.border === 'rocks' ? 1 : 0)) }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(tint[0], tint[1], tint[2]) } };
     mat.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { sp1: { value: sp1 }, sp2: { value: sp2 }, mapSize: { value: new THREE.Vector2(W, H) }, uTime: this.groundUniforms.uTime, uTint: this.groundUniforms.uTint, uDesert: this.groundUniforms.uDesert });
       for (const k in T) sh.uniforms[k] = { value: T[k] };
       sh.vertexShader = 'varying vec2 vXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
-      sh.fragmentShader = `uniform sampler2D sp1, sp2, tG, tG2, tD, tR, tF, tV, nG, nD, nR, nF, tAO, tCloud; uniform vec2 mapSize; uniform float uTime; uniform float uDesert; uniform vec3 uTint; varying vec2 vXZ;
+      sh.fragmentShader = `uniform sampler2D sp1, sp2, tG, tG2, tD, tR, tF, tV, nG, nD, nR, nF, tAO, tCloud, tChasm; uniform vec2 mapSize; uniform float uTime; uniform float uDesert; uniform vec3 uTint; varying vec2 vXZ;
         vec3 lin(vec3 c) { return pow(c, vec3(2.2)); }
         vec4 gw1; vec4 gw2; vec2 guv;
         ` + sh.fragmentShader.replace('#include <map_fragment>', `
         vec2 suv = clamp(vXZ / mapSize, vec2(0.0), vec2(1.0));
         vec4 a = texture2D(sp1, suv); vec4 b = texture2D(sp2, suv);
         bool outside = vXZ.x < 0.0 || vXZ.y < 0.0 || vXZ.x > mapSize.x || vXZ.y > mapSize.y;
-        if (outside) { if (uDesert > 0.5) { a = vec4(0.0, 0.0, 0.0, 1.0); b = vec4(0.0, 0.0, 0.0, 0.4); } else { a = vec4(0.6, 0.0, 0.0, 0.0); b.r = 0.6; b.g = 0.0; b.a = 0.3; } }
+        if (outside) { if (uDesert > 2.5) { a = vec4(1.0, 0.0, 0.0, 0.0); b = vec4(0.0, 0.0, 0.0, 0.5); } else if (uDesert > 0.5) { a = vec4(0.0, 0.0, 0.0, 1.0); b = vec4(0.0, 0.0, 0.0, 0.4); } else { a = vec4(0.6, 0.0, 0.0, 0.0); b.r = 0.6; b.g = 0.0; b.a = 0.3; } }
+        if (!outside && texture2D(tChasm, suv).r > 0.5) discard;
         gw1 = a; gw2 = b;
         vec2 uv = vXZ / 3.6; guv = uv;
-        vec3 g = lin(texture2D(tG, uv).rgb) * vec3(0.82, 0.92, 0.66);
+        vec3 g = lin(texture2D(tG, uv).rgb) * (uDesert > 2.5 ? vec3(1.25, 1.3, 1.42) : vec3(0.82, 0.92, 0.66));
         vec3 g2 = lin(texture2D(tG2, uv * 0.55).rgb);
         vec3 dd = lin(texture2D(tD, uv * 0.7).rgb);
         vec3 rr = lin(texture2D(tR, uv * 0.6).rgb) * vec3(0.8, 0.76, 0.7);
-        vec3 yy = mix(rr, lin(texture2D(tV, uv * 1.3).rgb), 0.4) * vec3(0.68, 0.66, 0.6);
-        vec3 ff = lin(texture2D(tF, uv * 0.8).rgb) * vec3(0.55, 0.62, 0.38);
+        vec3 yy = mix(rr, lin(texture2D(tV, uv * 1.3).rgb), 0.4) * (uDesert > 2.5 ? vec3(0.62, 0.68, 0.78) : vec3(0.68, 0.66, 0.6));
+        vec3 ff = lin(texture2D(tF, uv * 0.8).rgb) * (uDesert > 2.5 ? vec3(0.8, 0.84, 0.92) : vec3(0.55, 0.62, 0.38));
         g = mix(g, g2, b.b * 0.75);
+        if (uDesert > 2.5) g = mix(g, vec3(dot(g, vec3(0.333))) * vec3(0.96, 1.0, 1.1), 0.75);
         float sum = a.r + a.g + a.b + a.a + b.r + b.g + 0.0001;
         vec3 col = (g * a.r + dd * a.g + yy * a.b + rr * a.a + ff * b.r + ff * vec3(0.5, 0.45, 0.38) * b.g) / sum;
         col *= mix(0.78, 1.18, b.a) * uTint;
-        if (uDesert > 1.5) { col = vec3(dot(col, vec3(0.33))) * vec3(0.7, 0.74, 0.8); if (outside) col *= 0.03; }
+        if (uDesert > 1.5 && uDesert < 2.5) { col = vec3(dot(col, vec3(0.33))) * vec3(0.7, 0.74, 0.8); if (outside) col *= 0.03; }
         float occ = outside ? 0.85 : texture2D(tAO, suv).r;
         col *= mix(0.38, 1.0, occ);
         float cl = texture2D(tCloud, vXZ / 46.0 + vec2(uTime * 0.0045, uTime * 0.0021)).r;
@@ -726,7 +810,7 @@ const Render = {
     if (!ent._m || ent._kind !== kind) {
       if (ent._m) { this.dyn.remove(ent._m); if (ent._g) this.dyn.remove(ent._g); }
       ent._kind = kind;
-      if (kind === 'dog') { ent._c = null; ent._m = Dog.build(); this.dyn.add(ent._m); if (ghost) { ent._g = Dog.build(this.ghostMat); ent._g.traverse(c => { c.renderOrder = 999; }); ent._g.visible = false; this.dyn.add(ent._g); } }
+      if (kind === 'dog' || kind === 'dogE') { ent._c = null; ent._m = Dog.build(null, kind === 'dogE'); this.dyn.add(ent._m); if (ghost) { ent._g = Dog.build(this.ghostMat); ent._g.traverse(c => { c.renderOrder = 999; }); ent._g.visible = false; this.dyn.add(ent._g); } }
       else if (Chars.ready) { ent._c = Chars.build(kind, ghost ? this.ghostMat : null); ent._m = ent._c.root; ent._g = null; }
       else { ent._c = null; ent._m = Soldier.build(kind); }
       if (kind !== 'dog') this.dyn.add(ent._m);
@@ -819,7 +903,7 @@ const Render = {
 
   // Anima un soldado (modelo con esqueleto o, si no hay, el de primitivas)
   pose(ent, st, dt) {
-    if (ent._kind === 'dog') { st.t = this.time; Dog.animate(ent._m, st, dt); if (ent._g) Dog.animate(ent._g, st, dt); }
+    if (ent._kind === 'dog' || ent._kind === 'dogE') { st.t = this.time; Dog.animate(ent._m, st, dt); if (ent._g) Dog.animate(ent._g, st, dt); }
     else if (ent._c) Chars.animate(ent._c, st, dt);
     else { Soldier.pose(ent._m, st); ent._m.position.y = st.elev || 0; }
   },
@@ -828,6 +912,7 @@ const Render = {
     this.time += dt;
     for (const u of this.sway) u.value = this.time;
     if (this.groundUniforms) this.groundUniforms.uTime.value = this.time;
+    this.updatePrints();
     if (this.grassTime) this.grassTime.value = this.time;
     this.finalPass.uniforms.time.value = this.time;
     if (this.water) { this.water.material.normalMap.offset.set(this.time * 0.02, this.time * 0.013); }
@@ -856,7 +941,7 @@ const Render = {
     // comandos
     const pu = G.primary();
     for (const u of G.units) {
-      const kind = u.disguised ? 'spyDis' : u.type;
+      const kind = u.disguised ? 'spyDis' : ((this.M && this.M.unitKits && this.M.unitKits[u.type]) || u.type);
       const m = this.model(u, kind, true);
       m.visible = u.alive && !u.inVehicle;
       const run = u.run && !u.prone && !u.carry && !u.disguised;

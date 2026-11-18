@@ -58,7 +58,8 @@ const G = {
     this.time = 0; this.over = null; this.paused = false; this.shake = 0; this.chips = 0; this.flags = {};
     this.objState = M.objectives.map(() => false); this.secState = (M.secondary || []).map(() => false);
     this.runId++;
-    this.stats = { alarms: 0, kills: 0, ko: 0, downs: 0, bodies: 0 };
+    this.fog = M.fog || 1;
+    this.stats = { alarms: 0, kills: 0, ko: 0, downs: 0, bodies: 0, eshots: 0 };
     const e = Level.exit;
     FX.emitters.push({ rate: 5, fn: () => FX.smoke((e.x0 + e.x1 + 1) / 2 + (Math.random() - 0.5) * 0.2, (e.y0 + e.y1 + 1) / 2, 0.1, false, '120,200,110') });
     Render.zoom = 1.35; Render.setRotation(0);
@@ -112,12 +113,24 @@ const G = {
     }
     if (it.who && !it.who.includes(u.type)) { this.toast(`Esto debe hacerlo: ${it.who.map(w => UNIT_DEFS[w].name).join(' o ')}`, true); return; }
     it.done = true; Sfx.play('plant', it.x, it.y);
+    if (it.cut) { this.cutBridge(it.cut); return; }
     if (it.id === 'power') {
       this.power = false; Render.setPower(false);
       this.toast('Suministro cortado: focos y farolas apagados. La oscuridad es total.');
       for (const o of this.enemies) if (o.alive && o.state === 'patrol' && dist(o.x, o.y, it.x, it.y) < 12) o.startInvestigate(it.x, it.y, 5, 'noise');
     } else if (it.id === 'motor') { FX.explosion(it.x, it.y - 1, 0.8); this.noise(it.x, it.y, 6); this.toast('Motor de rotación saboteado'); }
     else this.toast(it.name + ': hecho');
+  },
+
+  // Corta un puente colgante: cae quien esté encima
+  cutBridge(id) {
+    const cells = Level.cutBridge(id); if (!cells.length) return;
+    const on = (x, y) => cells.some(([cx, cy]) => Math.floor(x) === cx && Math.floor(y) === cy);
+    for (const u of this.units) if (u.alive && on(u.x, u.y)) { u.alive = false; u.dying = false; this.defeat(u.def.name + ' ha caído al abismo.'); }
+    for (const e of this.enemies) if (e.alive && on(e.x, e.y)) { e.state = 'dead'; e.hidden = true; e.cause = 'fall'; }
+    Render.rebuildBridges(); Sfx.play('boom'); this.shake = 0.5;
+    this.toast('Los cables se rompen: el puente cae al abismo. No llegarán refuerzos por aquí.');
+    this.noise(cells[0][0], cells[0][1], 14);
   },
 
   // Subir a un vehículo
@@ -236,6 +249,7 @@ const G = {
 
   // Registrar un cuerpo o un mueble
   loot(u, src) {
+    if (src.needs && !this.units.some(x => x.alive && Inv.find(x.inv, src.needs))) { this.toast('Está cerrado: hace falta ' + ITEMS[src.needs].name, true); return; }
     const list = src instanceof Enemy ? src.loot : src.items;
     const got = [], left = [];
     for (const [id, n] of list) {
@@ -311,6 +325,7 @@ const G = {
     }
     for (const e of this.enemies) e.update(dt, this);
     for (const v of this.vehicles) v.update(dt, this);
+    if (Level.snow) { for (const p of Level.prints) p.t -= dt; if (Level.prints.length && Level.prints[0].t <= 0) Level.prints = Level.prints.filter(p => p.t > 0); }
     for (const c of Level.smokes) c.t -= dt;
     Level.smokes = Level.smokes.filter(c => c.t > 0);
     this.updateSpots(dt);
@@ -341,7 +356,7 @@ const G = {
       mission: this.mission.id, power: this.power, chips: this.chips, flags: this.flags, objState: this.objState,
       targets: Level.targets.map(t => t.destroyed), interacts: Level.interacts.map(i => i.done), mines: Level.mines.map(m => [m.dead, m.revealed]),
       doors: this.unlocked || [], vehicles: this.vehicles.map(v => ({ x: v.x, y: v.y, face: v.face, alive: v.alive, driver: v.driver ? v.driver.idx : -1, pass: v.passengers.map(p => p.idx) })),
-      time: this.time, stats: this.stats, destroyed: Level.depot.destroyed, cut: this.cutFences,
+      time: this.time, stats: this.stats, destroyed: Level.depot.destroyed, cut: this.cutFences, bridges: Object.values(Level.bridges).filter(b => b.cut).map(b => b.id),
       baits: this.baits.map(b => ({ x: b.x, y: b.y, type: b.type })), decoys: this.decoys, bombs: this.bombs,
       loot: Level.loot.map(l => l.items), rot: Render.rot,
       units: this.units.map(u => ({ x: u.x, y: u.y, hp: u.hp, alive: u.alive, dying: u.dying, dyingT: u.dyingT, dis: u.disguised, pr: u.prone, face: u.face, inv: u.inv.items, carry: u.carry ? u.carry.id : null, tower: !!u.onTower, det: u.detector })),
@@ -365,6 +380,7 @@ const G = {
     for (const [tx, ty] of snap.doors || []) { Level.grid[ty][tx] = 'D'; Render.unlockDoor(tx, ty); }
     if (snap.power === false) { this.power = false; Render.setPower(false); }
     for (const [tx, ty] of snap.cut || []) Level.grid[ty][tx] = '.';
+    for (const id of (snap.bridges || [])) Level.cutBridge(id); if ((snap.bridges || []).length) Render.rebuildBridges();
     this.cutFences = snap.cut || []; if (this.cutFences.length) Render.rebuildFences();
     if (snap.destroyed) { Level.destroyDepot(); Render.refreshDepot(); this.depotFire(); }
     this.baits = snap.baits.map(b => Object.assign(b, { claimed: null }));

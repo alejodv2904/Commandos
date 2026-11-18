@@ -12,6 +12,7 @@ Abre `index.html` en el navegador (doble clic). Funciona sin servidor: Three.js 
 | **E2 · Fuego Cruzado** (desierto, día) | Espía, Explosivos, Francotirador, Conductor | Cada especialista tiene su tarea: el Espía de uniforme cruza el control y neutraliza al oficial; Explosivos corta la alambrada, limpia el campo de minas con el detector y vuela el muro del cañón; el Francotirador sube a la torre de agua y elimina a los vigías de las azoteas; el Conductor recoge al escuadrón en el camión y sale por el cañón. |
 | **E1 · Protocolo Sombra** (instalación subterránea) | Ladrón, Asalto y Perro táctico | Cruza un pasillo vigilado por las zonas de sombra y tumbado; el Ladrón escala un muro y fuerza desde dentro la puerta que encierra a Asalto; el Perro lleva la llave maestra por una rejilla estrecha; Asalto atrae a un guardia con el señuelo, lo noquea, lo ata y lo esconde en un armario; y todos se reúnen en la salida. |
 | **1 · Frecuencia Muerta** (Atacama, noche) | Ladrón y Seductora | Tres terrazas con focos giratorios y farolas. Corta la electricidad en la subestación, abre la cúpula con ganzúas, descarga los datos, sabotea el motor de la antena y escapa en el todoterreno. Hay 20 chips escondidos y dos objetivos secundarios. |
+| **3 · Silencio en las Cumbres** (monasterio del Himalaya, ventisca) | Francotirador, Ladrón y Perro táctico | Nieve que deja huellas 20 s (los guardias que las ven las siguen), caminos de piedra sin rastro, un abismo con dos puentes colgantes (el Ladrón puede cortar el principal y quien esté encima cae), perros guardianes que huelen en 360º, francotiradores enemigos en torres de oración y una bóveda cerrada. Mata al Comandante de un disparo silenciado desde el sur, roba el maletín de la bóveda, corta el puente y escapa por la cresta este. Opcionales: 4 francotiradores sin que disparen y la reliquia (llave del Abad en un oficial). 20 chips. |
 | **X · Operación Depósito** | Boina Verde, Francotirador, Espía, Zapador | La misión original de prueba. |
 
 Las demás misiones y los bonus (se desbloquean reuniendo los 20 chips de su misión) aparecen en el selector pero aún están en desarrollo. El progreso, las estrellas y los chips se guardan en el navegador.
@@ -38,6 +39,13 @@ Las demás misiones y los bonus (se desbloquean reuniendo los 20 chips de su mis
 - **Perro táctico:** bull terrier blanco con mancha en el ojo, modelo propio con patas articuladas. Los enemigos lo ignoran, pasa por las rejillas estrechas, ladra (B) para atraer guardias a unos 12 m y lleva objetos en su collar (4 celdas). Para pasar un objeto, arrastra su icono de la mochila al retrato del compañero cuando estén juntos.
 - **Muros escalables** (solo el Ladrón), **rejillas** (solo el perro), **armarios metálicos** donde esconder cuerpos (Shift + clic con el cuerpo cargado) y **puertas blindadas**: unas se fuerzan con ganzúas (algunas solo desde el lado indicado) y otras con la llave maestra.
 - **Recintos interiores** con paredes de hormigón, balizas de luz y zonas de sombra donde los guardias ven mucho menos; los muros que tapan a un comando dibujan su silueta.
+
+## Misión 3: nieve, abismo y perros guardianes
+- **Huellas:** andar o reptar sobre nieve virgen deja pisadas durante 20 s; los caminos de piedra y los puentes no. Un guardia que las ve entra en alerta azul y las sigue.
+- **Ventisca:** la visibilidad de los guardias baja un 30 %, con nieve cayendo y neblina; el camuflaje ártico del Francotirador reduce aún más lo que ven si va tumbado.
+- **Abismo:** casillas intransitables; las balas lo cruzan. Cortar un puente (Ladrón, Shift + clic en los cables) lo elimina para siempre.
+- **Perro guardián:** huele en un radio de unos 5 m sin importar postura, disfraz ni arbustos; ladra, alerta a los demás y muerde.
+- **Rifle silenciado** (tecla D): 8 balas, apenas se oye. Los francotiradores enemigos de las torres tienen un cono muy estrecho: rodéalos.
 
 ## Nuevos comandos y objetos (fase 1)
 - **Conductor:** conduce el camión (Shift + clic para subir y bajar; clic para dirigirlo), pistola silenciada y granadas de humo (15 s de nube que corta la visión).

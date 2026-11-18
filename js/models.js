@@ -603,6 +603,18 @@ const Props = {
         this.cyl(B, 'post', x1 - 0.1, H / 2, cz, 0.04, H, 'y', 6);
         break;
       }
+      case 'prayertower': { // torre-pagoda de piedra con tejado rojo y remate dorado; plataforma a ~3,3 m
+        const Hp = 3.3;
+        B.box('stone', x0 + 0.1, 0, z0 + 0.1, x1 - 0.1, Hp, z1 - 0.1);
+        B.box('concrete', x0, Hp - 0.08, z0, x1, Hp + 0.1, z1);
+        for (const [a, b, c, d] of [[x0, z0, x1, z0 + 0.12], [x0, z1 - 0.12, x1, z1], [x0, z0, x0 + 0.12, z1], [x1 - 0.12, z0, x1, z1]]) B.box('stone', a, Hp + 0.1, b, c, Hp + 0.55, d);
+        for (const [a, c] of [[x0 + 0.1, z0 + 0.1], [x1 - 0.1, z0 + 0.1], [x0 + 0.1, z1 - 0.1], [x1 - 0.1, z1 - 0.1]]) B.box('wood', a - 0.06, Hp + 0.1, c - 0.06, a + 0.06, Hp + 1.9, c + 0.06);
+        const yR = Hp + 1.9, ap = [cx, yR + 0.75, cz], a0 = x0 - 0.45, a1 = x1 + 0.45, c0 = z0 - 0.45, c1 = z1 + 0.45;
+        B.add('red', Geo.tris([[[a0, yR, c0], [a1, yR, c0], ap], [[a1, yR, c0], [a1, yR, c1], ap], [[a1, yR, c1], [a0, yR, c1], ap], [[a0, yR, c1], [a0, yR, c0], ap]], 1.5));
+        B.box('lamp', cx - 0.06, yR + 0.7, cz - 0.06, cx + 0.06, yR + 1.1, cz + 0.06);
+        B.box('wood', x0 + 0.5, 0, z0 + 0.1 - 0.04, x0 + 1.0, 1.2, z0 + 0.12); // puerta
+        break;
+      }
       case 'tower': {
         const Hp = 3.2, s = 0.12;
         for (const [a, c] of [[x0 + s, z0 + s], [x1 - s, z0 + s], [x0 + s, z1 - s], [x1 - s, z1 - s]])
@@ -811,6 +823,16 @@ const SOLDIER_KIT = {
   tech:      { tunic: '#2c4a78', arms: '#2c4a78', pants: '#2a4470', boots: '#2a2420', bootTop: 0.1, belt: '#c8c4b8', beltW: 0.008, collar: '#2c4a78', skin: '#d8ac86', hat: 'flatcap', hatCol: '#d8d4c8', weapon: null, height: 1.75, width: 1.02, build: { belly: 1.1 } },
 };
 
+// Uniformes de invierno (misión del Himalaya): blanco nieve para los guardias y camuflaje ártico para los comandos
+Object.assign(SOLDIER_KIT, {
+  wsoldier:  Object.assign({}, SOLDIER_KIT.soldier,  { tunic: '#c2c8ca', arms: '#c2c8ca', pants: '#b3babd', boots: '#2a2622', belt: '#3a342b', hatCol: '#e4e7e7' }),
+  wsergeant: Object.assign({}, SOLDIER_KIT.sergeant, { tunic: '#c9cdcc', arms: '#c9cdcc', pants: '#b9bfc0', boots: '#2a2622', hatCol: '#a9b2b0', collar: '#7b7f7e' }),
+  wofficer:  Object.assign({}, SOLDIER_KIT.officer,  { tunic: '#8d9296', arms: '#8d9296', coat: true, coatCol: '#8d9296', pants: '#6f7479', boots: '#14110f', hatCol: '#6a7076', collar: '#d9d9d2' }),
+  wsniper:   Object.assign({}, SOLDIER_KIT.esniper,  { tunic: '#dfe2e2', arms: '#dfe2e2', pants: '#d3d7d7', camo: ['#c8ced0', '#eef0f0', '#a9b3b7'], hatCol: '#e8ebeb', boots: '#2a2622' }),
+  asniper:   Object.assign({}, SOLDIER_KIT.sniper,   { tunic: '#b4c0c8', arms: '#b4c0c8', coatCol: '#b4c0c8', hands: '#5b6264', pants: '#a6b2ba', hatCol: '#e2e5e5', boots: '#2a2622', camo: ['#c8ced0', '#eef0f0', '#a9b3b7'] }),
+  athief:    Object.assign({}, SOLDIER_KIT.thief,    { tunic: '#aab6be', arms: '#aab6be', pants: '#97a3ac', collar: '#aab6be', hatCol: '#e7eaea', boots: '#2a2622' })
+});
+
 const Soldier = {
   matCache: {},
   mat(col, ghost, shiny) {
@@ -947,9 +969,9 @@ const Dog = {
   mats: {},
   mat(c, ghost, r) { if (ghost) return ghost; const k = c + (r || 0); return this.mats[k] || (this.mats[k] = new THREE.MeshStandardMaterial({ color: c, roughness: r === undefined ? 0.7 : r, envMapIntensity: 0.4 })); },
 
-  build(ghost) {
+  build(ghost, dark) {
     const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-    const M = (c, r) => this.mat(c, ghost, r), W = '#e8e2d6';
+    const M = (c, r) => this.mat(c, ghost, r), W = dark ? '#3d3026' : '#e8e2d6';
     const add = (par, geo, mat, x, y, z, sx, sy, sz) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); if (sx) o.scale.set(sx, sy, sz); o.castShadow = !ghost; par.add(o); return o; };
     // torso (eje +z hacia delante)
     const torso = add(body, new THREE.CapsuleGeometry(0.15, 0.34, 4, 12), M(W), 0, 0.34, 0, 1, 1, 1); torso.rotation.x = Math.PI / 2;

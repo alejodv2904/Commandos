@@ -2,7 +2,7 @@
 // Controles clásicos de Commandos 2 (según la guía técnica).
 
 // Una tecla puede corresponder a varios objetos: se usa el que tenga el comando
-const KEY_ACTIONS = { q: ['punch'], a: ['knife', 'spike', 'syringe'], s: ['pistol', 'pistolS'], d: ['sniper'], g: ['grenade'], f: ['medkit'], c: ['cigs'], v: ['wine'], e: ['cutters'],
+const KEY_ACTIONS = { q: ['punch'], a: ['knife', 'spike', 'syringe'], s: ['pistol', 'pistolS'], d: ['sniper', 'sniperS'], g: ['grenade'], f: ['medkit'], c: ['cigs'], v: ['wine'], e: ['cutters'],
   w: ['examine'], t: ['talk'], b: ['bark'], k: ['lockpick'], l: ['lipstick'], r: ['steal'], z: ['smoke'], m: ['detector'] };
 
 const Input = {

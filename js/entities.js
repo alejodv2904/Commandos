@@ -2,7 +2,7 @@
 // Comandos y enemigos, siguiendo las reglas de Commandos 2.
 // Escala: 1 casilla ≈ 2 m. Radios de ruido de la guía convertidos a casillas.
 
-const NOISE = { knife: 2, punch: 2, run: 3.5, decoy: 6, pistol: 13, pistolS: 2.5, rifle: 18, explosion: 30, engine: 5 };
+const NOISE = { sniperS: 2.8, knife: 2, punch: 2, run: 3.5, decoy: 6, pistol: 13, pistolS: 2.5, rifle: 18, explosion: 30, engine: 5 };
 const SHOT_DAMAGE = 34;
 
 const UNIT_DEFS = {
@@ -49,6 +49,7 @@ const ACTS = {
   rope:    { range: 1.15, time: 1.4, anim: 'plant', ok: t => t.target && t.target.state === 'down', run(u, t, G) { t.target.state = 'tied'; Inv.take(u.inv, 'rope'); G.toast('Enemigo atado: ya no despertará'); } },
   talk:    { range: 1.5, time: 0.2, ok: (t, u) => u.disguised && t.target && !['dead', 'down', 'tied', 'alert'].includes(t.target.state), run(u, t, G) { t.target.distractBy = u; G.toast('El Espía entretiene al guardia. No te alejes de él.'); } },
   sniper:  { range: 13, los: true, time: 0.8, anim: 'aim', ok: t => t.target && t.target.state !== 'dead', run(u, t, G) { u.fire('sniper', t.target, G); } },
+  sniperS: { range: 13, los: true, time: 0.9, anim: 'aim', ok: t => t.target && t.target.state !== 'dead', run(u, t, G) { u.fire('sniperS', t.target, G); } },
   pistol:  { range: 7, los: true, time: 0.35, anim: 'aim', ok: t => t.target && t.target.state !== 'dead', run(u, t, G) { u.fire('pistol', t.target, G); } },
   grenade: { range: 9, los: true, time: 0.5, anim: 'throw', run(u, t, G) { Inv.take(u.inv, 'grenade'); G.explode(t.x, t.y, 2.3, NOISE.explosion); } },
   decoy:   { range: 1.5, time: 0.5, anim: 'plant', run(u, t, G) { Inv.take(u.inv, 'decoy'); G.decoys.push({ x: t.x, y: t.y, t: 10, next: 0 }); G.toast('Señuelo activado'); } },
@@ -124,7 +125,7 @@ class Commando {
   startBusy(t, kind, cb) { this.path = []; this.busyT = t; this.busyTotal = t; this.busyKind = kind; this.busyCb = cb; }
   faceTo(x, y) { this.face = Math.atan2(y - this.y, x - this.x); }
 
-  weapon() { for (const id of ['sniper', 'pistol']) { const it = Inv.find(this.inv, id); if (it && it.n > 0) return id; } return null; }
+  weapon() { for (const id of ['sniper', 'sniperS', 'pistol']) { const it = Inv.find(this.inv, id); if (it && it.n > 0) return id; } return null; }
 
   fire(kind, e, G) {
     const it = Inv.find(this.inv, kind);
@@ -133,13 +134,13 @@ class Commando {
     it.n--;
     if (this.disguised && kind !== 'pistolS') { this.disguised = false; G.toast('Disparar ha delatado el disfraz', true); }
     const d = dist(this.x, this.y, e.x, e.y);
-    const hit = kind === 'sniper' || Math.random() < clamp(0.95 - d * 0.06, 0.4, 0.92);
+    const hit = kind === 'sniper' || kind === 'sniperS' || Math.random() < clamp(0.95 - d * 0.06, 0.4, 0.92);
     G.fx.push({ k: 'tracer', x0: this.x, y0: this.y, x1: e.x, y1: e.y, h0: this.elev, h1: e.elev || 0, t: 0.15, dur: 0.15 });
     FX.muzzle(this.x, this.y, this.face);
-    Sfx.play(kind === 'sniper' ? 'rifle' : kind === 'pistolS' ? 'knife' : 'shot', this.x, this.y);
+    Sfx.play(kind === 'sniper' ? 'rifle' : kind === 'pistolS' || kind === 'sniperS' ? 'knife' : 'shot', this.x, this.y);
     if (hit) { e.kill('shot'); G.stats.kills++; } else FX.dust(e.x + (Math.random() - 0.5), e.y + (Math.random() - 0.5));
     G.noise(this.x, this.y, NOISE[kind] || NOISE.pistol);
-    this.cool = kind === 'sniper' ? 1.4 : 0.5;
+    this.cool = kind === 'sniper' || kind === 'sniperS' ? 1.4 : 0.5;
   }
 
   update(dt, G) {
@@ -174,6 +175,10 @@ class Commando {
         if (this.moving) {
           this.face = turnToward(this.face, this.moveAng, 14 * dt);
           this.anim += dt * sp * 2.2;
+          if (Level.snow && !this.onTower && Level.floorAt(Math.floor(this.x), Math.floor(this.y)) === 'n') {
+            const lp = this._lp;
+            if (!lp || dist(lp.x, lp.y, this.x, this.y) > 0.5) { Level.prints.push({ x: this.x, y: this.y, a: this.moveAng, t: 20, side: (this._ps = -(this._ps || 1)), by: this.type }); this._lp = { x: this.x, y: this.y }; }
+          }
           if (run) { this.noiseT -= dt; if (this.noiseT <= 0) { G.noise(this.x, this.y, this.def.quiet ? 1.2 : NOISE.run); this.noiseT = 0.5; } }
           const mn = Level.mines.length && Level.mineAt(Math.floor(this.x), Math.floor(this.y));
           if (mn) { mn.dead = true; G.explode(mn.x, mn.y, 1.8, NOISE.explosion); }
@@ -185,7 +190,7 @@ class Commando {
 
   coverFire(G) {
     const w = this.weapon(); if (!w || this.cool > 0) return;
-    const range = w === 'sniper' ? 13 : 7;
+    const range = w === 'sniper' || w === 'sniperS' ? 13 : 7;
     let best = null, bd = range;
     for (const e of G.enemies) {
       if (['dead', 'down', 'tied'].includes(e.state) || e.hidden) continue;
@@ -217,6 +222,7 @@ const RANKS = {
   officer:  { name: 'Oficial', range: 10, near: 4.5, half: Math.PI / 4, fireCd: 0.9, bait: [], kind: 'officer', spots: true },
   gestapo:  { name: 'Gestapo', range: 10, near: 4.5, half: Math.PI / 4, fireCd: 0.8, bait: [], kind: 'gestapo', spots: true, gestapo: true },
   sniper:   { name: 'Francotirador', range: 16, near: 6, half: 0.24, fireCd: 1.6, bait: [], kind: 'esniper', instant: true, static: true, elev: 3.32 },
+  dog:      { name: 'Perro guardián', range: 5.2, near: 5.2, half: Math.PI, fireCd: 0.9, bait: [], kind: 'dogE', smell: true, melee: true, damage: 30 },
   tech:     { name: 'Técnico', range: 8, near: 4, half: Math.PI / 4, fireCd: 9, bait: ['patrol', 'investigate'], kind: 'tech', unarmed: true }
 };
 RANKS.sergeant.light = true; // los suboficiales llevan linterna: de noche ven igual
@@ -262,6 +268,7 @@ class Enemy {
     if (this.state === 'alert') { range *= 1.15; half *= 1.2; }
     if (this.drunkT > 0) { range *= 0.5; near *= 0.6; }
     if (this.elev > 0) range *= 1.25;
+    if (!this.R.smell && G.fog && G.fog < 1) { range *= G.fog; near *= Math.min(1, G.fog + 0.1); }
     return { range, near, half };
   }
 
@@ -273,6 +280,10 @@ class Enemy {
   // Velocidad de detección de un comando (0 = no lo ve). Devuelve también si está en zona cercana.
   canSee(u) {
     if (!u.alive || u.dying || u.inVehicle) return null;
+    if (this.R.smell) { // el perro guardián huele: radio fijo, sin importar postura, disfraz ni arbustos
+      if (u.isVehicle || dist(this.x, this.y, u.x, u.y) > this.R.range) return null;
+      return { rate: 2.4, near: true };
+    }
     if (u.def && u.def.animal) return null; // los enemigos ignoran al perro (lo toman por un animal callejero)
     const v = this.vision(), d = dist(this.x, this.y, u.x, u.y);
     // de noche, lejos de la luz, se ve mucho menos (salvo con linterna)
@@ -281,6 +292,7 @@ class Enemy {
     if (d > 0.8 && Math.abs(angDiff(Math.atan2(u.y - this.y, u.x - this.x), this.face)) > v.half) return null; // por la espalda solo se te detecta a menos de 0,8
     if (!Level.los(this.x, this.y, u.x, u.y, this.elev > 0 || u.elev > 0)) return null;
     if (u.inBush && d > 2 && this.elev <= 0) return null;
+    if (Level.snow && u.type === 'sniper' && u.prone) { v.range *= 0.6; v.near *= 0.6; if (d > v.range) return null; } // camuflaje ártico
     const near = d <= v.near;
     if (u.isVehicle) return { rate: near ? 4 : 1.6, near };
     if (u.def && u.def.civilian) { // civil: solo los oficiales sospechan si se queda en su zona cercana
@@ -329,6 +341,22 @@ class Enemy {
       b.discovered = true; this.body = b; G.stats.bodies++;
       this.startInvestigate(b.x, b.y, 5, 'sight');
       G.toast('Un guardia ha visto un cuerpo', true);
+    }
+    // huellas en la nieve: los guardias que las ven las siguen
+    if (Level.snow && !this.R.smell && !this.fixed && !this.R.unarmed && (this.state === 'patrol' || (this.state === 'investigate' && this.arrived))) {
+      let pick = null;
+      for (const p of Level.prints) {
+        if (p.t <= 0 || p.seen) continue;
+        const d = dist(this.x, this.y, p.x, p.y);
+        if (d > Math.min(v.range, 6.5) || (d > 1.2 && Math.abs(angDiff(Math.atan2(p.y - this.y, p.x - this.x), this.face)) > v.half * 1.4)) continue;
+        if (!Level.los(this.x, this.y, p.x, p.y)) continue;
+        if (!pick || p.t > pick.t) pick = p;
+      }
+      if (pick) {
+        for (const p of Level.prints) if (dist(p.x, p.y, pick.x, pick.y) < 1.5) p.seen = true;
+        if (this.state === 'patrol') G.toast('¡Un guardia ha visto tus huellas en la nieve!', true);
+        this.startInvestigate(pick.x, pick.y, 3, 'sight'); this.tracking = true;
+      }
     }
     // cebos (cigarrillos, vino)
     if (this.R.bait.includes(this.state) && !this.bait) {
@@ -422,6 +450,7 @@ class Enemy {
       if (this.path === null) this.path = findPath(this.x, this.y, this.target.x, this.target.y, { avoidMines: true }) || [];
       if (this.path.length) { this.move(dt, this.invKind === 'noise' ? 2.0 : 2.4, true); return; }
       this.arrived = true; this.lookBase = this.face;
+      if (this.tracking) this.lookT = 1.2;
       const b = this.body; this.body = null;
       if (b && dist(this.x, this.y, b.x, b.y) < 2.5) {
         if (b.state === 'down' || b.state === 'tied') { b.state = 'investigate'; b.invKind = 'sight'; b.target = { x: b.x, y: b.y }; b.arrived = true; b.lookT = 4; b.discovered = false; G.toast('Han liberado a un guardia', true); }
@@ -430,7 +459,7 @@ class Enemy {
     }
     this.lookT -= dt;
     this.face = this.lookBase + Math.sin(this.t * 1.6) * 1.1;
-    if (this.lookT <= 0) { this.state = 'patrol'; this.path = null; this.waitT = 0; this.susp = 0; }
+    if (this.lookT <= 0) { this.state = 'patrol'; this.path = null; this.waitT = 0; this.susp = 0; this.tracking = false; }
   }
 
   doAlert(dt, G) {
@@ -449,10 +478,10 @@ class Enemy {
       this.lastSeen = { x: t.x, y: t.y }; this.lostT = 0;
       const d = dist(this.x, this.y, t.x, t.y), a = Math.atan2(t.y - this.y, t.x - this.x);
       this.face = turnToward(this.face, a, 9 * dt);
-      const reach = this.fixed ? this.R.range : 7;
+      const reach = this.fixed ? this.R.range : this.R.melee ? 1.15 : 7;
       if (!this.fixed && (d > reach || !Level.los(this.x, this.y, t.x, t.y))) {
         if (this.repathT <= 0 || !this.path || !this.path.length) { this.path = findPath(this.x, this.y, t.x, t.y, { avoidMines: true }) || []; this.repathT = 0.5; }
-        this.move(dt, 2.9, false);
+        this.move(dt, this.R.melee ? 4.6 : 2.9, false);
       } else {
         this.path = [];
         if (this.shootCd <= 0 && Math.abs(angDiff(a, this.face)) < 0.35) this.shoot(t, G);
@@ -474,6 +503,12 @@ class Enemy {
   shoot(t, G) {
     this.shootCd = this.R.fireCd;
     if (this.R.unarmed) return;
+    if (this.R.melee) { // mordisco
+      if (dist(this.x, this.y, t.x, t.y) > 1.5) return;
+      Sfx.play('bark', this.x, this.y); G.noise(this.x, this.y, 9);
+      t.damage(this.R.damage, G, t.def.name + ' ha sido destrozado por un perro guardián.'); return;
+    }
+    if (this.R.instant) G.stats.eshots = (G.stats.eshots || 0) + 1;
     const d = dist(this.x, this.y, t.x, t.y);
     G.fx.push({ k: 'tracer', x0: this.x, y0: this.y, x1: t.x, y1: t.y, h0: this.elev, h1: t.elev || 0, t: 0.12, dur: 0.12, enemy: true });
     FX.muzzle(this.x, this.y, this.face); Sfx.play(this.rank === 'sergeant' ? 'shot' : 'rifle', this.x, this.y);

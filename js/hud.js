@@ -55,7 +55,7 @@ const HUD = {
       const s = Math.min(d.w, d.h) * CELL - 4, c = makeCanvas(s, s);
       Sprites.icon(c.getContext('2d'), ITEM_ICON[it.id] || it.id, s);
       el.appendChild(c);
-      const showN = d.stack || ['sniper', 'pistol', 'medkit'].includes(it.id);
+      const showN = d.stack || ['sniper', 'sniperS', 'pistol', 'medkit'].includes(it.id);
       el.insertAdjacentHTML('beforeend', `${d.key ? `<span class="key">${d.key}</span>` : ''}${showN ? `<span class="badge">${it.n}</span>` : ''}`);
       el.title = `${d.name} — ${d.desc}`;
       el.addEventListener('click', () => Input.equip(it.id));

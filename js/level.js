@@ -14,6 +14,7 @@ const Level = {
   exit: { x0: 2, y0: 2, x1: 7, y1: 7 },
   startPositions: [],
   loot: [], mines: [], interacts: [], lights: [], spots: [], vehicles: [], targets: [], smokes: [], towers: [], doorFrom: {}, indoor: false,
+  snow: false, prints: [], bridges: {},
   borderStyle: 'forest',
 
   // Rejilla lógica:
@@ -34,6 +35,7 @@ const Level = {
     this.depot.destroyed = false;
     this.buildings = []; this.props = []; this.trees = []; this.border = []; this.rocks = [];
     this.loot = []; this.mines = []; this.interacts = []; this.lights = []; this.spots = []; this.vehicles = []; this.targets = []; this.smokes = []; this.towers = []; this.doorFrom = {};
+    this.snow = !!M.snow; this.prints = []; this.bridges = {};
     this.indoor = !!(WEATHER[M.weather] && WEATHER[M.weather].indoor);
     this.borderStyle = M.border || 'forest';
     this.exit = Object.assign({}, M.exit);
@@ -86,6 +88,12 @@ const Level = {
       wall(x0, y0, x1, y1) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) A.setG(x, y, '#'); },
       // abre un vano en un muro: 'D' puerta, 'L' cerrada con llave, 'H' rejilla (perro), 'C' muro escalable
       gap(x, y, kind, opt) { A.setG(x, y, kind); if (opt && opt.from) L.doorFrom[x + ',' + y] = opt.from; },
+      // puente colgante: tablones sobre el abismo (se puede cortar)
+      bridge(id, x0, y0, x1, y1) {
+        const cells = [];
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { A.setG(x, y, '.'); A.setF(x, y, 'b'); cells.push([x, y]); }
+        L.bridges[id] = { id, cells, cut: false };
+      },
       locker(x, y) { A.setG(x, y, 'K'); L.props.push({ type: 'locker', x, y, w: 1, h: 1, seed: (x * 7 + y * 13) % 97 }); },
       rock(x, y, s) { A.setG(Math.floor(x), Math.floor(y), 'q'); L.rocks.push({ x, y, s: s || 1, v: (rng() * 6) | 0 }); },
       loot(name, x, y, items, extra) { const l = Object.assign({ name, x, y, items }, extra || {}); L.loot.push(l); return l; },
@@ -139,6 +147,13 @@ const Level = {
     return A;
   },
 
+  // Corta un puente: las casillas pasan a ser abismo y quien esté encima cae
+  cutBridge(id) {
+    const b = this.bridges[id]; if (!b || b.cut) return [];
+    b.cut = true;
+    for (const [x, y] of b.cells) { this.grid[y][x] = 'Y'; this.floor[y][x] = 'h'; }
+    return b.cells;
+  },
   at(tx, ty) {
     if (tx < 0 || ty < 0 || tx >= this.W || ty >= this.H) return 'R';
     return this.grid[ty][tx];
@@ -153,7 +168,7 @@ const Level = {
     const c = this.at(tx, ty);
     if (c === 'C') return !(this._fl && this._fl.climb);
     if (c === 'H') return !(this._fl && this._fl.small);
-    if ('#fBRWcgovnkPLXVQlqZK'.includes(c)) return true;
+    if ('#fBRWcgovnkPLXVQlqZKY'.includes(c)) return true;
     const fl = this._fl;
     if (fl && fl.avoidMines && this.mines.length && this.mineAt(tx, ty, true)) return true;
     if (fl && fl.wide) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = this.at(tx + dx, ty + dy); if ('#BRWcgovnkPLXQqZTCVKH'.includes(n)) return true; } } // las alambradas no impiden el paso de un vehículo

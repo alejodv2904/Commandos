@@ -45,6 +45,7 @@ const Sfx = {
       case 'shot': this.noise(0.22, 2200, 0.8, 0.55 * v); this.tone(160, 0.12, 'sine', 0.35 * v, 50); break;
       case 'rifle': this.noise(0.45, 1500, 0.7, 0.8 * v); this.tone(110, 0.2, 'sine', 0.5 * v, 40); this.noise(0.8, 600, 0.5, 0.15 * v, 'lowpass', 0.08); break;
       case 'boom': this.noise(1.6, 380, 0.6, 1.0 * v); this.tone(70, 0.9, 'sine', 0.8 * v, 25); this.noise(2.2, 160, 0.4, 0.4 * v, 'lowpass', 0.15); break;
+      case 'bark': this.noise(0.14, 900, 2, 0.5 * v, 'bandpass'); this.tone(420, 0.14, 'sawtooth', 0.14 * v, 260); break;
       case 'knife': this.noise(0.12, 4500, 3, 0.28 * v, 'bandpass'); break;
       case 'thud': this.noise(0.18, 260, 1, 0.4 * v); break;
       case 'whistle': this.tone(1700, 0.18, 'sine', 0.18 * v, 2100); this.tone(2100, 0.25, 'sine', 0.18 * v, 1600, 0.2); break;

@@ -24,6 +24,7 @@ const Obj = {
 const KITS = {
   ww2: { soldier: 'soldier', sergeant: 'sergeant', officer: 'officer', gestapo: 'gestapo', sniper: 'esniper', tech: 'tech' },
   desert: { soldier: 'dsoldier', sergeant: 'dsergeant', officer: 'dofficer', gestapo: 'dofficer', sniper: 'esniper', tech: 'tech' },
+  snow: { soldier: 'wsoldier', sergeant: 'wsergeant', officer: 'wofficer', gestapo: 'wofficer', sniper: 'wsniper', tech: 'tech' },
   night: { soldier: 'nsoldier', sergeant: 'nsergeant', officer: 'nofficer', gestapo: 'nofficer', sniper: 'esniper', tech: 'tech' }
 };
 
@@ -31,6 +32,7 @@ const WEATHER = {
   day: { name: 'Día', sun: 0xffd8a8, sunInt: 2.3, sunOff: [-13, 21, -17], hemi: [0xc8dcff, 0x5a4a30, 0.35], sky: true, exposure: 0.72, bg: '#2a3320', tint: [1, 1, 1] },
   desert: { name: 'Día despejado', sun: 0xfff0d8, sunInt: 2.7, sunOff: [-10, 26, -12], hemi: [0xd8e8ff, 0x8a6a40, 0.45], sky: true, exposure: 0.7, bg: '#6a5838', tint: [1.18, 1.04, 0.84] },
   indoor: { name: 'Interior climatizado', indoor: true, night: true, sun: 0xaab8d0, sunInt: 0.75, sunOff: [10, 22, -8], hemi: [0x8a98b4, 0x2a3038, 0.95], sky: false, exposure: 1.3, bg: '#030405', tint: [1, 1, 1] },
+  blizzard: { name: 'Ventisca de día', snow: true, haze: 0.55, sun: 0xe6eefa, sunInt: 1.7, sunOff: [-9, 22, -11], hemi: [0xe4ecf8, 0x9aa8bc, 0.95], sky: false, exposure: 0.85, bg: '#b8c4d2', tint: [0.97, 1.0, 1.05] },
   night: { name: 'Noche despejada', night: true, sun: 0x9ab4ff, sunInt: 0.85, sunOff: [12, 22, -10], hemi: [0x5a6ea8, 0x232a3c, 0.8], sky: false, exposure: 1.3, bg: '#05070c', tint: [0.9, 0.92, 1.05] }
 };
 
@@ -263,6 +265,79 @@ const PROTOCOLO_ENEMIES = [
   { x: 5.5, y: 5.5, patrol: [{ x: 5.5, y: 5.5, wait: 3 }, { x: 15.5, y: 5.5, wait: 3 }] }
 ];
 
+// ---------- Misión 3: Silencio en las Cumbres ----------
+// Mapa vertical dividido por un abismo (y 23..26) con dos puentes colgantes. Sur: campamento nevado; norte: monasterio de piedra.
+function buildSilencio(A) {
+  const W = A.W, H = A.H, rng = A.rng;
+  // abismo y puentes
+  A.rectG(1, 23, 62, 26, 'Y'); A.rectF(1, 23, 62, 26, 'h');
+  A.bridge('main', 31, 23, 32, 26); A.bridge('west', 11, 23, 12, 26);
+  // caminos de piedra (no dejan huellas)
+  A.rectF(30, 27, 33, 31, 'e'); A.rectF(24, 31, 40, 35, 'e'); A.rectF(10, 27, 13, 30, 'e'); A.rectF(11, 30, 12, 44, 'e'); A.rectF(4, 43, 12, 45, 'e');
+  A.rectF(28, 19, 35, 22, 'e'); A.rectF(10, 19, 13, 22, 'e'); A.rectF(9, 5, 54, 17, 'e'); A.rectF(56, 9, 62, 11, 'e');
+  // monasterio: muralla con cuatro accesos y un tramo helado escalable (solo el Ladrón)
+  A.wall(8, 4, 55, 4); A.wall(8, 18, 55, 18); A.wall(8, 4, 8, 18); A.wall(55, 4, 55, 18);
+  A.gap(31, 18, 'D'); A.gap(32, 18, 'D'); A.gap(55, 10, 'D'); A.gap(8, 12, 'D'); A.gap(20, 18, 'C'); A.gap(21, 18, 'C');
+  const mon = { facade: 'plaster', roof: 'terracotta', H: 1.6, R: 0.5 };
+  A.building(12, 5, 10, 6, Object.assign({ name: 'Celdas de los monjes (oeste)', furn: 'bunks' }, mon));
+  A.building(42, 5, 10, 6, Object.assign({ name: 'Celdas de los monjes (este)', furn: 'bunks' }, mon));
+  A.building(26, 5, 12, 7, Object.assign({ name: 'Templo', furn: 'house', H: 2.1, R: 0.7 }, mon));
+  A.building(40, 13, 12, 5, { name: 'Bóveda subterránea', facade: 'concrete', roof: 'flat', H: 1.5, R: 0.1, furn: 'servers', locked: true, door: { x: 45, y: 13 } });
+  A.gap(45, 13, 'L', { from: 'n' });
+  // torres de oración (francotiradores enemigos)
+  for (const [x, y] of [[9, 5], [53, 5], [9, 15], [53, 15]]) A.prop('prayertower', x, y, 2, 2, 'k');
+  for (const [x, y] of [[23, 9], [24, 9], [24, 14], [38, 15], [39, 15], [22, 16], [50, 12], [30, 16], [34, 16]]) A.prop('crate', x, y, 1, 1, 'c');
+  for (const [x, y] of [[15, 16], [47, 12]]) A.prop('barrels', x, y, 1, 1, 'o');
+  // campamento base sur: tiendas con chips
+  const tents = [[14, 31], [19, 36], [40, 30], [46, 35], [51, 41], [23, 41], [38, 43], [13, 40]];
+  tents.forEach(([x, y], i) => { A.prop('tent', x, y, 3, 2, 'n'); A.loot('Tienda de campaña', x + 1.5, y + 2.7, [['chip', 1]].concat(i % 3 === 0 ? [['ration', 1]] : i % 3 === 1 ? [['cigs', 1]] : [])); });
+  for (const [x, y] of [[28, 28], [34, 28]]) A.prop('sandbag', x, y, 3, 1, 'g');
+  for (const [x, y] of [[27, 38], [28, 38], [43, 38], [32, 44], [20, 30], [56, 32]]) A.prop('crate', x, y, 1, 1, 'c');
+  for (const [x, y] of [[44, 29], [58, 36]]) A.prop('barrels', x, y, 1, 1, 'o');
+  // botín
+  A.loot('Relicario antiguo', 32.5, 7.5, [['relic', 1]], { needs: 'abbotkey' });
+  A.loot('Maletín de la bóveda', 46.5, 15.5, [['briefcase', 1]]); A.loot('Caja fuerte', 42.5, 15.5, [['chip', 1], ['medkit', 3]]); A.loot('Archivador', 49.5, 14.8, [['chip', 1]]);
+  [[13.5, 7.2], [16.5, 6.6], [18.5, 8.6], [20.5, 7.2]].forEach(([x, y]) => A.loot('Celda', x, y, [['chip', 1]]));
+  [[43.5, 7.2], [46.5, 6.6], [48.5, 8.6], [50.5, 7.2]].forEach(([x, y]) => A.loot('Celda', x, y, [['chip', 1]]));
+  A.loot('Alijo de la torre', 11.5, 14.6, [['chip', 1], ['ammo', 2]]); A.loot('Alijo de la torre', 52.4, 14.6, [['chip', 1]]);
+  // el Ladrón corta los cables del puente principal desde su extremo norte
+  A.interact('cutbridge', 'Cortar los cables del puente principal', 31.5, 22.6, { time: 5, cut: 'main', who: ['thief'] });
+  // rocas en el borde del abismo y en las laderas
+  for (const x of [3, 6, 16, 20, 24, 36, 41, 44, 48, 53, 57, 60]) A.rock(x + 0.5, 27.6 + rng() * 0.2, 0.9 + rng() * 0.7);
+  for (const x of [4, 17, 25, 38, 47, 58]) A.rock(x + 0.5, 22.4, 0.8 + rng() * 0.6);
+  for (let k = 0; k < 26; k++) {
+    const x = 2 + rng() * (W - 4), y = 28 + rng() * (H - 30), tx = Math.floor(x), ty = Math.floor(y);
+    if (A.getG(tx, ty) !== '.' || A.getF(tx, ty) !== 'n' || A.reserved(x, y)) continue;
+    A.rock(x, y, 0.5 + rng() * 0.9);
+  }
+}
+
+const sz = (x, y, x2, y2, rank, extra) => Object.assign({ x, y, rank, patrol: [{ x, y, wait: 3 }, { x: x2, y: y2, wait: 3 }] }, extra || {});
+const st = (x, y, face, rank, extra) => Object.assign({ x, y, rank, patrol: [{ x, y, face }] }, extra || {});
+const SILENCIO_ENEMIES = [
+  // campamento base (sur)
+  sz(18.5, 30.5, 27.5, 30.5), sz(36.5, 33.5, 44.5, 33.5), sz(24.5, 38.5, 34.5, 38.5), sz(45.5, 28.5, 56.5, 29.5), st(30.0, 28.5, 1.57), st(33.5, 28.5, 1.57),
+  sz(14.5, 45.5, 22.5, 45.5), sz(48.5, 46.5, 56.5, 40.5), sz(26.5, 34.5, 31.5, 42.5, 'sergeant'), st(42.5, 40.5, 3.14), sz(5.5, 33.5, 5.5, 37.5), sz(36.5, 47.5, 46.5, 47.5), st(51.5, 33.5, 3.14, 'sergeant'),
+  sz(30.5, 46.5, 30.5, 39.5), sz(3.5, 30.5, 8.5, 30.5),
+  { x: 34.5, y: 40.5, rank: 'dog', patrol: [{ x: 34.5, y: 40.5, wait: 2 }, { x: 46.5, y: 38.5, wait: 2 }, { x: 40.5, y: 45.5, wait: 2 }] },
+  // terraza norte y accesos
+  { x: 24.5, y: 20.5, rank: 'officer', tag: 'chief', patrol: [{ x: 24.5, y: 20.5, wait: 5 }, { x: 40.5, y: 20.5, wait: 5 }] },
+  st(27.5, 20.0, 1.57, 'sergeant'), st(37.5, 20.0, 1.57, 'sergeant'), sz(14.5, 20.5, 24.5, 21.5), sz(42.5, 20.5, 52.5, 21.5), sz(3.5, 19.5, 3.5, 8.5), sz(58.5, 14.5, 58.5, 21.5),
+  st(31.0, 16.5, 1.57), st(33.0, 16.5, 1.57), st(54.5, 9.0, 0), st(9.5, 12.0, 3.14),
+  // patios del monasterio
+  sz(10.5, 13.5, 30.5, 13.5), sz(34.5, 13.5, 39.5, 16.5), sz(23.0, 15.5, 23.0, 6.5), sz(40.5, 11.5, 53.5, 11.5), sz(14.5, 15.5, 28.5, 16.5),
+  { x: 14.5, y: 12.0, rank: 'officer', tag: 'abbot', patrol: [{ x: 14.5, y: 12.0, wait: 4 }, { x: 22.5, y: 12.0, wait: 4 }], pocket: [['abbotkey', 1]] },
+  { x: 45.5, y: 12.0, rank: 'officer', patrol: [{ x: 45.5, y: 12.0, face: 1.57 }], loot: [['medkit', 3]] },
+  { x: 25.5, y: 5.8, rank: 'sergeant', patrol: [{ x: 25.5, y: 5.8, wait: 3 }, { x: 25.5, y: 10.5, wait: 3 }] },
+  { x: 38.8, y: 10.5, rank: 'sergeant', patrol: [{ x: 38.8, y: 10.5, wait: 3 }, { x: 38.8, y: 5.8, wait: 3 }] },
+  { x: 22.5, y: 14.0, rank: 'dog', patrol: [{ x: 22.5, y: 14.0, wait: 2 }, { x: 36.5, y: 14.0, wait: 2 }] },
+  // francotiradores enemigos en las torres de oración
+  { x: 10.0, y: 6.0, rank: 'sniper', tag: 'esn', sweep: 0.3, patrol: [{ x: 10.0, y: 6.0, face: 0.5 }] },
+  { x: 54.0, y: 6.0, rank: 'sniper', tag: 'esn', sweep: 0.3, patrol: [{ x: 54.0, y: 6.0, face: 2.6 }] },
+  { x: 10.0, y: 16.0, rank: 'sniper', tag: 'esn', sweep: 0.4, patrol: [{ x: 10.0, y: 16.0, face: 1.35 }] },
+  { x: 54.0, y: 16.0, rank: 'sniper', tag: 'esn', sweep: 0.4, patrol: [{ x: 54.0, y: 16.0, face: 1.8 }] }
+];
+
 // ---------- Catálogo de la campaña ----------
 const MISSIONS = [
   { id: 't1', chapter: 'Entrenamiento', num: 'E1', name: 'Protocolo Sombra', place: 'Instalación subterránea en los Andes', playable: true,
@@ -325,8 +400,28 @@ const MISSIONS = [
     briefing: 'Noche en Atacama. Los focos halógenos y las farolas dejan islas de luz en una oscuridad total: en lo oscuro los guardias ven mucho menos. La Seductora atrae a los guardias hacia los rincones oscuros donde espera el Ladrón, que puede trepar por los muros de las terrazas. Hay 20 chips escondidos en taquillas, escritorios y bolsillos de los técnicos.' },
   { id: 'm2', chapter: 'Campaña', num: '2', name: 'Abismo de Hierro', place: 'Plataforma petrolera en el Mar del Norte', bonus: 'b2', squad: 'Buzo, Explosivos y Asalto',
     desc: 'Tormenta nocturna sobre 4 niveles de acero y la zona submarina entre los pilares. Cargas magnéticas, rescate del ingeniero y evacuación en lancha.' },
-  { id: 'm3', chapter: 'Campaña', num: '3', name: 'Silencio en las Cumbres', place: 'Monasterio fortificado en el Himalaya', bonus: 'b3', squad: 'Francotirador, Ladrón y Perro táctico',
-    desc: 'Ventisca: la nieve deja huellas. Un abismo con puentes colgantes, un monasterio de piedra y una bóveda subterránea.' },
+  { id: 'm3', chapter: 'Campaña', num: '3', name: 'Silencio en las Cumbres', place: 'Monasterio fortificado en el Himalaya', playable: true, bonus: 'b3',
+    desc: 'Ventisca: la nieve deja huellas durante 20 s. Un abismo con dos puentes colgantes, un monasterio de piedra con francotiradores en las torres y una bóveda cerrada.',
+    W: 64, H: 52, seed: 3003, baseFloor: 'n', border: 'rocks', trees: 0, weather: 'blizzard', kits: 'snow', snow: true, fog: 0.7, grass: 0, chips: 20, par: 1500,
+    exit: { x0: 58, y0: 9, x1: 62, y1: 11 },
+    unitKits: { sniper: 'asniper', thief: 'athief' },
+    squad: [
+      { type: 'sniper', x: 5.5, y: 46.5, inv: [['sniperS', 0, 0, 8], ['ammo', 3, 0, 4], ['cigs', 3, 1, 1]] },
+      { type: 'thief', x: 7.5, y: 47.5, inv: [['lockpick', 0, 0], ['spike', 2, 0], ['cigs', 3, 0, 2], ['rope', 0, 1, 3], ['piolet', 2, 1]] },
+      { type: 'dog', x: 6.5, y: 48.5, inv: [] }
+    ],
+    enemies: SILENCIO_ENEMIES, build: buildSilencio,
+    objectives: [
+      Obj.custom(G => G.enemies.filter(e => e.tag === 'chief').every(e => !Obj.alive(e)), 'Eliminar al Comandante en Jefe del monasterio con un disparo limpio a larga distancia'),
+      Obj.hasItem('briefcase', 'Infiltrarse en la bóveda subterránea y robar el maletín con los códigos de cifrado'),
+      Obj.custom(() => !!(Level.bridges.main && Level.bridges.main.cut), 'Cortar los cables del puente colgante principal para frenar los refuerzos'),
+      Obj.reachExit('Escapar todo el equipo por el sendero de la cresta este')
+    ],
+    secondary: [
+      { text: 'Eliminar a los 4 francotiradores enemigos sin que ninguno llegue a disparar', check: G => G.enemies.filter(e => e.tag === 'esn').every(e => !Obj.alive(e)) && G.stats.eshots === 0 },
+      Obj.hasItem('relic', 'Abrir el antiguo relicario del templo con la llave del Abad')
+    ],
+    briefing: 'Ventisca en el Himalaya: a media distancia no se ve casi nada y la nieve virgen guarda cada pisada durante 20 segundos (los guardias que ven tus huellas las siguen). Los caminos de piedra no dejan rastro. El Francotirador, con rifle silenciado de 8 balas, cubre desde los acantilados del sur; el Ladrón abre la bóveda, roba la llave al Abad y corta los cables del puente; el Perro, que no despierta sospechas, lleva objetos en su collar (arrastra el objeto sobre su retrato). Cuidado con los perros guardianes: huelen en 360º aunque vayas tumbado. 20 chips en celdas, torres y tiendas del campamento.' },
   { id: 'm4', chapter: 'Campaña', num: '4', name: 'Veneno Verde', place: 'Laboratorio en ruinas de la Amazonía', bonus: 'b4', squad: 'Buzo, Asalto, Espía y Perro táctico',
     desc: 'Lluvia y barro. Un río caudaloso y una pirámide con un laboratorio biológico de dos plantas.' },
   { id: 'm5', chapter: 'Campaña', num: '5', name: 'El Expreso Transiberiano', place: 'Tren blindado en la estepa siberiana', bonus: 'b5', squad: 'Espía, Conductor, Ladrón y Asalto',
