@@ -1,7 +1,9 @@
 'use strict';
 // Controles clásicos de Commandos 2 (según la guía técnica).
 
-const KEY_ACTIONS = { q: 'punch', a: 'knife', s: 'pistol', d: 'sniper', g: 'grenade', f: 'medkit', c: 'cigs', v: 'wine', e: 'cutters', w: 'examine', t: 'talk' };
+// Una tecla puede corresponder a varios objetos: se usa el que tenga el comando
+const KEY_ACTIONS = { q: ['punch'], a: ['knife', 'spike', 'syringe'], s: ['pistol', 'pistolS'], d: ['sniper'], g: ['grenade'], f: ['medkit'], c: ['cigs'], v: ['wine'], e: ['cutters'],
+  w: ['examine'], t: ['talk'], k: ['lockpick'], l: ['lipstick'], r: ['steal'], z: ['smoke'], m: ['detector'] };
 
 const Input = {
   G: null,
@@ -68,6 +70,7 @@ const Input = {
     if (G.overlayOpen) { if (k === 'enter' || k === 'escape') { const b = document.querySelector('#overlay button'); if (b) b.click(); } return; }
     if (e.ctrlKey && k === 's') return G.save();
     if (e.ctrlKey && k === 'l') return G.load();
+    if (e.ctrlKey && k === 'm') { e.preventDefault(); return G.toast(Sfx.toggleMute() ? 'Sonido desactivado' : 'Sonido activado'); }
     if (G.tactical && (k === 'escape' || k === 'f9')) return HUD.toggleTactical();
     const p = G.primary();
     if (k >= '0' && k <= '9' && !e.altKey) {
@@ -100,9 +103,8 @@ const Input = {
       case 'arrowright': Render.setRotation(Render.rot + 1); break;
       case '+': Render.zoomAt(1.15, G.canvas.clientWidth / 2, G.canvas.clientHeight / 2); break;
       case '-': Render.zoomAt(0.87, G.canvas.clientWidth / 2, G.canvas.clientHeight / 2); break;
-      case 'm': G.toast(Sfx.toggleMute() ? 'Sonido desactivado' : 'Sonido activado'); break;
       default:
-        if (KEY_ACTIONS[k] && p) this.equip(KEY_ACTIONS[k]);
+        if (KEY_ACTIONS[k] && p) { const id = KEY_ACTIONS[k].find(i => this.has(p, i)) || KEY_ACTIONS[k][0]; this.equip(id); }
     }
   },
 
@@ -137,6 +139,7 @@ const Input = {
     const G = this.G, p = G.primary(); if (!p || p.dying) return;
     if (!this.has(p, id)) { G.toast(`${p.def.name} no tiene ${(actionDef(id) || {}).name || id}`, true); return; }
     const d = actionDef(id);
+    if (id === 'detector') { p.detector = !p.detector; G.toast(p.detector ? 'Detector activado: revela minas a unos 8 m' : 'Detector apagado'); HUD.dirty = true; return; }
     if (d.target === 'self') { Inv.take(p.inv, id); p.heal(p.maxHp * 0.25); G.toast('Salud recuperada'); HUD.dirty = true; return; }
     if (d.target === 'wear') { this.wearUniform(!p.disguised); return; }
     if (!d.target) { G.toast(d.desc); return; }
@@ -180,8 +183,8 @@ const Input = {
   bodyAt(sx, sy, states) {
     let best = null, bd = 30 * Render.zoom;
     for (const e of this.G.enemies) {
-      if (!states.includes(e.state) || e.hidden || e.carried || Render.closedAt(e.x, e.y)) continue;
-      const s = Render.toScreen(e.x, 0.1 + (e.R.elev || 0), e.y), d = Math.hypot(s.x - sx, s.y - sy);
+      if (!states.includes(e.state) || e.hidden || e.carried || Render.closedAt(e.x, e.y, e.elev)) continue;
+      const s = Render.toScreen(e.x, 0.1 + (e.elev || 0), e.y), d = Math.hypot(s.x - sx, s.y - sy);
       if (d < bd) { bd = d; best = e; }
     }
     return best;
@@ -203,6 +206,13 @@ const Input = {
       case 'down': { const e = this.bodyAt(sx, sy, ['down']); return e ? { kind: id, target: e } : null; }
       case 'ally': { const a = G.unitAt(sx, sy); return a && a.alive ? { kind: id, target: a } : null; }
       case 'loot': { const l = this.lootAt(sx, sy, w); return l ? { kind: 'examine', target: l } : null; }
+      case 'door': {
+        for (const [ox, oy] of [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5], [0, 1], [0, -1]]) {
+          const tx = Math.floor(w.x + ox), ty = Math.floor(w.y + oy);
+          if (Level.at(tx, ty) === 'L') { const f = Level.nearestFree(tx, ty, 2, { x: u.x, y: u.y }); return { kind: id, tx, ty, x: f ? f.x + 0.5 : tx + 0.5, y: f ? f.y + 0.5 : ty + 0.5 }; }
+        }
+        return null;
+      }
       case 'fence': {
         for (const [ox, oy] of [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]]) {
           const tx = Math.floor(w.x + ox), ty = Math.floor(w.y + oy);
@@ -231,7 +241,21 @@ const Input = {
     if (!p || p.dying) return;
     // Shift + clic: interactuar (cargar/soltar cuerpos, registrar)
     if (e.shiftKey) {
-      if (p.carry) { p.task = { kind: 'drop', x: w.x, y: w.y }; p.path = findPath(p.x, p.y, w.x, w.y) || []; p.task.x = p.path.length ? p.path[p.path.length - 1].x : p.x; p.task.y = p.path.length ? p.path[p.path.length - 1].y : p.y; return; }
+      if (p.inVehicle) { G.leaveVehicle(p); return; }
+      const veh = G.vehicleAt(w.x, w.y);
+      if (veh && veh.alive) { p.task = { kind: 'board', veh, x: veh.x, y: veh.y }; Object.defineProperty(p.task, 'target', { value: veh, enumerable: false }); p.path = []; return; }
+      const mine = Level.mines.find(m => m.revealed && !m.dead && dist(m.x, m.y, w.x, w.y) < 0.8);
+      if (mine) {
+        if (!Inv.find(p.inv, 'detector')) { G.toast('Hace falta el detector de minas para desactivarla', true); return; }
+        p.task = { kind: 'disarm', mine, x: mine.x, y: mine.y }; p.path = []; return;
+      }
+      const it = Level.interacts.find(i => (!i.done || i.repeat) && dist(i.x, i.y, w.x, w.y) < 1.4);
+      if (it) { p.task = { kind: 'interact', it, x: it.x, y: it.y }; p.path = []; return; }
+      if (Level.at(Math.floor(w.x), Math.floor(w.y)) === 'L' || [[0, 1], [0, -1], [1, 0], [-1, 0]].some(([a, b]) => Level.at(Math.floor(w.x + a * 0.4), Math.floor(w.y + b * 0.4)) === 'L')) {
+        if (!Inv.find(p.inv, 'lockpick')) { G.toast('Puerta cerrada con llave: hacen falta las ganzúas del Ladrón', true); return; }
+        const t = this.resolveTarget(p, 'lockpick', sx, sy, w); if (t) { p.task = t; p.path = []; return; }
+      }
+      if (p.carry) { p.task = { kind: 'drop', x: w.x, y: w.y }; p.path = findPath(p.x, p.y, w.x, w.y, p.pathFlags()) || []; p.task.x = p.path.length ? p.path[p.path.length - 1].x : p.x; p.task.y = p.path.length ? p.path[p.path.length - 1].y : p.y; return; }
       const body = this.bodyAt(sx, sy, ['dead', 'down', 'tied']);
       if (body) {
         if (!p.def.carry) { G.toast(`${p.def.name} no puede cargar cuerpos`, true); return; }
@@ -261,6 +285,13 @@ const Input = {
   move(e, w) {
     const G = this.G, sel = G.selected();
     if (!sel.length) return;
+    const drv = sel.find(u => u.inVehicle && u.inVehicle.driver === u);
+    if (drv) {
+      if (!drv.inVehicle.drive(w.x, w.y)) G.toast('El vehículo no puede llegar ahí', true);
+      else { Sfx.play('order'); G.fx.push({ k: 'ring', x: w.x, y: w.y, r: 1, t: 0.4, dur: 0.4 }); }
+      return;
+    }
+    if (sel.every(u => u.inVehicle)) { G.toast('Shift + clic para bajar del vehículo'); return; }
     const now = performance.now(), run = now - G.lastClick < 350;
     G.lastClick = now;
     let ok = false;
@@ -268,7 +299,8 @@ const Input = {
       let tx = w.x, ty = w.y;
       if (i > 0) { const a = i * 2.4, r = 0.55 + 0.25 * i; tx += Math.cos(a) * r; ty += Math.sin(a) * r * 0.8; }
       if (Level.solid(Math.floor(tx), Math.floor(ty)) && i > 0) { tx = w.x; ty = w.y; }
-      const path = findPath(s.x, s.y, tx, ty);
+      if (s.inVehicle) return;
+      const path = findPath(s.x, s.y, tx, ty, s.pathFlags());
       if (!path) return;
       s.order(path, run); ok = true;
     });
@@ -288,19 +320,22 @@ const Input = {
 
 // Selección en pantalla (cada soldado se proyecta y se compara con el puntero)
 G.screenToWorld = (sx, sy) => Render.pickGround(sx, sy) || { x: -50, y: -50 };
+G.vehicleAt = function (x, y) {
+  return this.vehicles.find(v => { const c = Math.cos(-v.face), s = Math.sin(-v.face), dx = x - v.x, dy = y - v.y, lx = dx * c - dy * s, ly = dx * s + dy * c; return Math.abs(lx) < v.T.L / 2 + 0.2 && Math.abs(ly) < v.T.Wd / 2 + 0.2; }) || null;
+};
 G.unitAt = function (sx, sy) {
   let best = null, bd = 26 * Render.zoom;
   for (const u of this.units) {
-    if (!u.alive) continue;
-    for (const hgt of u.prone || u.dying ? [0.1] : [0.2, 0.5, 0.8]) { const p = Render.toScreen(u.x, hgt, u.y), d = Math.hypot(p.x - sx, p.y - sy); if (d < bd) { bd = d; best = u; } }
+    if (!u.alive || u.inVehicle) continue;
+    for (const hgt of u.prone || u.dying ? [0.1] : [0.2, 0.5, 0.8]) { const p = Render.toScreen(u.x, hgt + u.elev, u.y), d = Math.hypot(p.x - sx, p.y - sy); if (d < bd) { bd = d; best = u; } }
   }
   return best;
 };
 G.enemyAt = function (sx, sy) {
   let best = null, bd = 26 * Render.zoom;
   for (const e of this.enemies) {
-    if (e.hidden || e.carried || Render.closedAt(e.x, e.y)) continue;
-    const lying = !e.alive, el = e.R.elev || 0;
+    if (e.hidden || e.carried || Render.closedAt(e.x, e.y, e.elev)) continue;
+    const lying = !e.alive, el = e.elev || 0;
     for (const hgt of lying ? [0.1] : [0.2, 0.5, 0.8]) { const p = Render.toScreen(e.x, hgt + el, e.y), d = Math.hypot(p.x - sx, p.y - sy); if (d < bd) { bd = d; best = e; } }
   }
   return best;

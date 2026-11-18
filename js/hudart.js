@@ -8,7 +8,10 @@ const PAL = {
   sniper: { tunic: '#5d4a33', pants: '#6a603e', boots: '#2e2418', belt: '#4a3c24', skin: '#e0b38c', hat: 'fieldcap', hatCol: '#4a3a26', weapon: 'sniper' },
   spy: { tunic: '#8c8471', pants: '#292d37', boots: '#121212', belt: '#1a1a1a', skin: '#dcb08a', hat: 'fedora', hatCol: '#38383d', weapon: null, shirt: '#e8e4d8' },
   spyDis: { tunic: '#6c7259', pants: '#3b3d36', boots: '#141312', belt: '#2a2018', skin: '#dcb08a', hat: 'cap', hatCol: '#5e6551', weapon: 'pistol', armband: true },
-  sapper: { tunic: '#6b6a44', pants: '#5a583a', boots: '#2a2118', belt: '#3e3824', skin: '#d8a982', hat: 'brodie', hatCol: '#5d5c3a', weapon: null, pack: '#4f4a30' }
+  sapper: { tunic: '#6b6a44', pants: '#5a583a', boots: '#2a2118', belt: '#3e3824', skin: '#d8a982', hat: 'brodie', hatCol: '#5d5c3a', weapon: null, pack: '#4f4a30' },
+  driver: { tunic: '#5a3a22', pants: '#55603a', boots: '#2a1d14', belt: '#2a1d14', skin: '#d4a07c', hat: 'fieldcap', hatCol: '#3a3328', weapon: null },
+  thief: { tunic: '#141a24', pants: '#1c1f26', boots: '#0d0d0f', belt: '#0d0d0f', skin: '#dcb08a', hat: 'beanie', hatCol: '#1c1f28', weapon: null },
+  seductress: { tunic: '#7a1426', pants: '#7a1426', boots: '#1a0c0e', belt: '#3a0a12', skin: '#e0b494', hat: 'hair', hatCol: '#3a2216', weapon: null, shirt: '#e0b494' },
 };
 
 const Sprites = {
@@ -137,6 +140,44 @@ const Sprites = {
         x.strokeStyle = '#ffb340'; x.lineWidth = 3; x.beginPath(); x.arc(24, 24, 13, 0, 7); x.moveTo(24, 5); x.lineTo(24, 15); x.moveTo(24, 33); x.lineTo(24, 43); x.moveTo(5, 24); x.lineTo(15, 24); x.moveTo(33, 24); x.lineTo(43, 24); x.stroke();
         x.fillStyle = '#ffb340'; x.beginPath(); x.arc(24, 24, 3, 0, 7); x.fill();
         break;
+      case 'spike':
+        x.strokeStyle = '#c8ccd0'; x.lineWidth = 3; x.beginPath(); x.moveTo(10, 40); x.lineTo(38, 10); x.stroke();
+        x.fillStyle = '#3a2a1a'; x.save(); x.translate(12, 38); x.rotate(-0.8); x.fillRect(-4, -3, 12, 6); x.restore();
+        break;
+      case 'lockpick':
+        x.strokeStyle = '#c8c0a0'; x.lineWidth = 2.5;
+        x.beginPath(); x.moveTo(8, 36); x.lineTo(34, 14); x.lineTo(40, 16); x.moveTo(12, 40); x.lineTo(38, 20); x.lineTo(42, 24); x.stroke();
+        x.fillStyle = '#6a5a3a'; x.fillRect(4, 34, 10, 8);
+        break;
+      case 'lipstick':
+        x.fillStyle = '#c8a040'; x.fillRect(18, 24, 12, 18); x.fillStyle = '#8a6a20'; x.fillRect(18, 22, 12, 4);
+        x.fillStyle = '#c0203a'; x.beginPath(); x.moveTo(19, 22); x.lineTo(19, 10); x.lineTo(29, 6); x.lineTo(29, 22); x.fill();
+        break;
+      case 'pistolS':
+        x.fillStyle = '#2a2a2a'; x.fillRect(6, 16, 24, 9); x.fillStyle = '#4a4a48'; x.fillRect(30, 17, 14, 7);
+        x.fillStyle = '#5a3a22'; x.save(); x.translate(10, 24); x.rotate(0.3); x.fillRect(0, 0, 9, 16); x.restore();
+        break;
+      case 'smoke':
+        x.fillStyle = '#7a8a7a'; this.rr(x, 14, 18, 18, 24, 3); x.fill(); x.fillStyle = '#ddd'; x.fillRect(14, 26, 18, 4);
+        x.fillStyle = 'rgba(220,220,210,.8)'; for (const [a, b, r] of [[30, 12, 6], [38, 8, 5], [24, 8, 5]]) { x.beginPath(); x.arc(a, b, r, 0, 7); x.fill(); }
+        break;
+      case 'detector':
+        x.strokeStyle = '#6a6a5a'; x.lineWidth = 3; x.beginPath(); x.moveTo(36, 8); x.lineTo(20, 34); x.stroke();
+        x.strokeStyle = '#c8b060'; x.lineWidth = 3; x.beginPath(); x.ellipse(16, 38, 11, 5, -0.2, 0, 7); x.stroke();
+        x.fillStyle = '#3a3a30'; x.fillRect(32, 6, 8, 10);
+        break;
+      case 'keys':
+        x.strokeStyle = '#d8c060'; x.lineWidth = 3; x.beginPath(); x.arc(16, 18, 8, 0, 7); x.moveTo(22, 24); x.lineTo(40, 40); x.moveTo(34, 34); x.lineTo(38, 30); x.moveTo(38, 38); x.lineTo(42, 34); x.stroke();
+        break;
+      case 'codes':
+        x.fillStyle = '#e8dcb0'; x.fillRect(10, 10, 28, 30); x.fillStyle = '#2a4a8a'; x.font = 'bold 8px monospace'; x.fillText('FREQ', 13, 20);
+        x.fillStyle = '#3a3a3a'; for (let i = 0; i < 4; i++) x.fillRect(13, 25 + i * 4, 18 - i * 3, 2);
+        break;
+      case 'steal':
+        x.fillStyle = '#d9ab84'; this.rr(x, 8, 20, 16, 12, 5); x.fill();
+        x.strokeStyle = '#d9ab84'; x.lineWidth = 3; x.beginPath(); x.moveTo(22, 22); x.lineTo(32, 14); x.moveTo(22, 26); x.lineTo(34, 20); x.stroke();
+        x.fillStyle = '#c8a040'; x.beginPath(); x.arc(38, 12, 5, 0, 7); x.fill();
+        break;
       case 'eye':
         x.strokeStyle = ink; x.lineWidth = 3; x.beginPath(); x.moveTo(6, 24); x.quadraticCurveTo(24, 6, 42, 24); x.quadraticCurveTo(24, 42, 6, 24); x.stroke();
         x.fillStyle = ink; x.beginPath(); x.arc(24, 24, 6, 0, 7); x.fill();
@@ -184,6 +225,9 @@ const Sprites = {
       case 'fieldcap': x.beginPath(); x.ellipse(50, H * 0.25, 24, 14, 0, Math.PI, 0); x.fill(); x.fillStyle = shade(P.hatCol, -0.12); x.beginPath(); x.ellipse(50, H * 0.26, 26, 5, 0, 0, 7); x.fill(); break;
       case 'fedora': x.beginPath(); x.ellipse(50, H * 0.25, 36, 7, 0, 0, 7); x.fill(); this.rr(x, 31, H * 0.04, 38, H * 0.2, 9); x.fill(); x.fillStyle = '#151515'; x.fillRect(31, H * 0.19, 38, 5); break;
       case 'brodie': x.beginPath(); x.ellipse(50, H * 0.23, 40, 9, 0, 0, 7); x.fill(); x.fillStyle = shade(P.hatCol, 0.06); x.beginPath(); x.ellipse(50, H * 0.21, 23, 16, 0, Math.PI, 0); x.fill(); break;
+      case 'beanie': x.beginPath(); x.ellipse(50, H * 0.25, 25, 17, 0, Math.PI, 0); x.fill(); x.fillRect(25, H * 0.24, 50, 7); break;
+      case 'hair': x.beginPath(); x.ellipse(50, H * 0.3, 27, 20, 0, Math.PI, 0); x.fill(); x.fillRect(23, H * 0.28, 8, H * 0.32); x.fillRect(69, H * 0.28, 8, H * 0.32);
+        x.fillStyle = '#c03040'; x.fillRect(43, H * 0.6, 14, 3); break;
       case 'cap': x.beginPath(); x.ellipse(50, H * 0.16, 30, 10, 0, 0, 7); x.fill(); x.fillStyle = '#26261f'; x.fillRect(27, H * 0.17, 46, 7); x.fillStyle = '#111'; x.beginPath(); x.ellipse(50, H * 0.27, 24, 5, 0, 0, 7); x.fill(); break;
     }
     x.restore();

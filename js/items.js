@@ -18,13 +18,22 @@ const ITEMS = {
   grenade: { name: 'Granada', w: 1, h: 1, stack: true, key: 'G', target: 'point', desc: 'Explosión de radio corto. Se oye en casi todo el complejo.' },
   cutters: { name: 'Alicates', w: 2, h: 1, key: 'E', target: 'fence', desc: 'Corta un tramo de alambrada para abrir paso.' },
   ammo:    { name: 'Munición de rifle', w: 1, h: 1, stack: true, target: null, desc: 'Balas para el rifle de francotirador.' },
-  docs:    { name: 'Documentos secretos', w: 2, h: 1, target: null, desc: 'Objetivo secundario: sácalos de la base.' }
+  docs:    { name: 'Documentos secretos', w: 2, h: 1, target: null, desc: 'Objetivo secundario: sácalos de la base.' },
+  spike:   { name: 'Pincho', w: 1, h: 1, key: 'A', target: 'enemy', desc: 'Elimina en silencio a un enemigo junto a ti.' },
+  lockpick:{ name: 'Ganzúas', w: 2, h: 1, key: 'K', target: 'door', desc: 'Abre puertas cerradas con llave (unos 2 s).' },
+  lipstick:{ name: 'Lápiz labial', w: 1, h: 1, key: 'L', target: 'enemy', desc: 'Atrae a un soldado o técnico: se acerca y se queda embobado mirándola mientras ella no se mueva. No funciona con oficiales.' },
+  pistolS: { name: 'Pistola silenciada', w: 2, h: 1, key: 'S', target: 'enemy', weapon: true, desc: 'Disparo silencioso a media distancia (apenas se oye).' },
+  smoke:   { name: 'Granada de humo', w: 1, h: 1, stack: true, key: 'Z', target: 'point', desc: 'Nube de humo de 15 s que corta la visión de los guardias.' },
+  detector:{ name: 'Detector de minas', w: 2, h: 1, key: 'M', target: 'self', desc: 'Actívalo para revelar las minas cercanas. Shift + clic en una mina revelada para desactivarla.' },
+  keys:    { name: 'Llaves del camión', w: 1, h: 1, target: null, desc: 'Permiten conducir el camión militar.' },
+  codes:   { name: 'Códigos de frecuencia', w: 1, h: 1, target: null, desc: 'Objetivo secundario robado del bolsillo del Jefe de Comunicaciones.' }
 };
 
 const ABILITIES = {
   punch:   { name: 'Puñetazo', key: 'Q', target: 'enemy', desc: 'Deja inconsciente a un enemigo unos 28 s. Átalo con una cuerda antes de que despierte.' },
   talk:    { name: 'Hablar', key: 'T', target: 'enemy', desc: 'Disfrazado, el Espía entretiene a un soldado: se queda mirándole mientras los demás pasan.' },
-  examine: { name: 'Examinar', key: 'W', target: 'loot', desc: 'Registra cuerpos, cajas y muebles para recoger objetos.' }
+  examine: { name: 'Examinar', key: 'W', target: 'loot', desc: 'Registra cuerpos, cajas y muebles para recoger objetos.' },
+  steal:   { name: 'Robar', key: 'R', target: 'enemy', desc: 'Roba del bolsillo de un guardia vivo acercándote por la espalda (o mientras está distraído).' }
 };
 
 function actionDef(id) { return ITEMS[id] || ABILITIES[id] || null; }

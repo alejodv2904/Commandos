@@ -5,7 +5,8 @@ const HUD_H = 150;
 
 const G = {
   canvas: null, ui: null, mini: null,
-  units: [], enemies: [], fx: [], baits: [], decoys: [], bombs: [],
+  units: [], enemies: [], fx: [], baits: [], decoys: [], bombs: [], vehicles: [], spots: [],
+  mission: null, night: false, power: true, chips: 0, flags: {}, objState: [],
   time: 0, paused: false, over: null, overlayOpen: true, shake: 0,
   coneMode: 'hover', hover: {}, hl: { items: false, enemies: false }, hudHidden: false, tactical: false,
   stats: { alarms: 0, kills: 0, ko: 0, downs: 0 },
@@ -25,8 +26,9 @@ const G = {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     Input.bind(this);
-    this.reset();
-    HUD.showIntro();
+    Progress.load();
+    this.reset('classic');
+    HUD.showMenu();
     let last = performance.now();
     const loop = now => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -38,22 +40,117 @@ const G = {
 
   resize() { Render.resize(window.innerWidth, Math.max(200, window.innerHeight - (this.hudHidden ? 0 : HUD_H))); },
 
-  reset() {
-    Level.build();
+  // Prepara una misión de la campaña
+  reset(id) {
+    const M = this.mission = MISSIONS_BY_ID[id || (this.mission && this.mission.id) || 'classic'];
+    Level.build(M);
     FX.reset();
-    Render.bakeLevel();
-    const types = ['beret', 'sniper', 'spy', 'sapper'];
-    this.units = types.map((t, i) => new Commando(t, Level.startPositions[i][0], Level.startPositions[i][1], i));
+    this.night = !!WEATHER[M.weather].night; this.power = true;
+    Render.bakeLevel(M);
+    this.units = M.squad.map((q, i) => new Commando(q.type, q.x, q.y, i, q.inv));
     this.units[0].selected = true;
-    this.enemies = ENEMY_DEFS.map((d, i) => new Enemy(i, d));
+    const kit = KITS[M.kits || 'ww2'];
+    this.enemies = M.enemies.map((d, i) => { const e = new Enemy(i, d); e.kit = kit[e.rank] || e.R.kind; return e; });
+    this.vehicles = Level.vehicles.map(v => new Vehicle(v));
+    this.spots = Level.spots.map(sp => Object.assign({ ang: (sp.a0 + sp.a1) / 2, dir: 1, cd: 0 }, sp));
+    for (const t of Level.towers) t.base = (Level.interacts.find(i => i.climb) || { x: t.x, y: t.y + 2 });
     this.fx = []; this.baits = []; this.decoys = []; this.bombs = []; this.cutFences = [];
-    this.time = 0; this.over = null; this.paused = false; this.shake = 0;
+    this.time = 0; this.over = null; this.paused = false; this.shake = 0; this.chips = 0; this.flags = {};
+    this.objState = M.objectives.map(() => false); this.secState = (M.secondary || []).map(() => false);
     this.runId++;
-    this.stats = { alarms: 0, kills: 0, ko: 0, downs: 0 };
-    FX.emitters.push({ rate: 5, fn: () => FX.smoke(6.6 + Math.random() * 0.1, 3.2, 0.1, false, '120,200,110') });
+    this.stats = { alarms: 0, kills: 0, ko: 0, downs: 0, bodies: 0 };
+    const e = Level.exit;
+    FX.emitters.push({ rate: 5, fn: () => FX.smoke((e.x0 + e.x1 + 1) / 2 + (Math.random() - 0.5) * 0.2, (e.y0 + e.y1 + 1) / 2, 0.1, false, '120,200,110') });
     Render.zoom = 1.35; Render.setRotation(0);
-    this.centerOn(9, 35);
+    this.centerOn(this.units[0].x + 4, this.units[0].y - 3);
     HUD.build();
+  },
+
+  // ¿Está iluminado este punto? (farolas y focos encendidos)
+  isLit(x, y) {
+    if (!this.power) return false;
+    for (const l of Level.lights) if (dist(l.x, l.y, x, y) < l.r) return true;
+    for (const sp of this.spots) if (dist(sp.cx, sp.cy, x, y) < sp.r) return true;
+    return false;
+  },
+
+  // Focos giratorios: barren un arco; quien entra en el haz con línea de visión da la alarma
+  updateSpots(dt) {
+    for (const sp of this.spots) {
+      if (!this.power) { sp.cx = -99; sp.cy = -99; continue; }
+      sp.ang += sp.dir * sp.speed * dt;
+      if (sp.ang > sp.a1) { sp.ang = sp.a1; sp.dir = -1; } if (sp.ang < sp.a0) { sp.ang = sp.a0; sp.dir = 1; }
+      sp.cx = sp.x + Math.cos(sp.ang) * sp.dist; sp.cy = sp.y + Math.sin(sp.ang) * sp.dist;
+      sp.cd = Math.max(0, sp.cd - dt);
+      if (sp.cd > 0) continue;
+      for (const u of this.units) {
+        if (!u.alive || u.dying || u.inVehicle || dist(u.x, u.y, sp.cx, sp.cy) > sp.r || u.def.civilian) continue;
+        if (!Level.los(sp.x, sp.y, u.x, u.y, true)) continue;
+        sp.cd = 6; this.stats.alarms++;
+        this.toast('¡Un foco te ha iluminado! Alarma', true); Sfx.play('alarm');
+        let near = null, nd = 1e9;
+        for (const o of this.enemies) if (o.alive && !o.R.unarmed) { const d = dist(o.x, o.y, u.x, u.y); if (d < nd) { nd = d; near = o; } }
+        if (near) this.raiseAlert(near, u);
+        for (const o of this.enemies) if (o.alive && o.state !== 'alert' && dist(o.x, o.y, u.x, u.y) < 16) o.startInvestigate(u.x, u.y, 6, 'alarm');
+        break;
+      }
+    }
+  },
+
+  smoke(x, y) {
+    const c = { x, y, r: 2.6, t: 15 }; Level.smokes.push(c);
+    const em = { rate: 16, fn: () => { if (c.t > 0) FX.smoke(x + (Math.random() - 0.5) * 3.4, y + (Math.random() - 0.5) * 3.4, 0.2, true, 165 + Math.random() * 30); } };
+    FX.emitters.push(em);
+    Sfx.play('thud', x, y);
+  },
+
+  // Interacciones con el escenario (Shift + clic)
+  interact(u, it) {
+    if (it.climb) {
+      const t = Level.towers[0]; u.onTower = t; u.elev = t.elev; u.x = t.top.x; u.y = t.top.y; u.path = [];
+      this.toast('En lo alto de la torre: el rifle alcanza mucho más lejos'); return;
+    }
+    if (it.who && !it.who.includes(u.type)) { this.toast(`Esto debe hacerlo: ${it.who.map(w => UNIT_DEFS[w].name).join(' o ')}`, true); return; }
+    it.done = true; Sfx.play('plant', it.x, it.y);
+    if (it.id === 'power') {
+      this.power = false; Render.setPower(false);
+      this.toast('Suministro cortado: focos y farolas apagados. La oscuridad es total.');
+      for (const o of this.enemies) if (o.alive && o.state === 'patrol' && dist(o.x, o.y, it.x, it.y) < 12) o.startInvestigate(it.x, it.y, 5, 'noise');
+    } else if (it.id === 'motor') { FX.explosion(it.x, it.y - 1, 0.8); this.noise(it.x, it.y, 6); this.toast('Motor de rotación saboteado'); }
+    else this.toast(it.name + ': hecho');
+  },
+
+  // Subir a un vehículo
+  board(u, v) {
+    if (u.carry) { this.toast('Suelta antes el cuerpo', true); return; }
+    if (!v.driver && v.canDrive(u)) { v.driver = u; }
+    else if (v.occupants().length < v.seats) v.passengers.push(u);
+    else { this.toast('No queda sitio', true); return; }
+    u.inVehicle = v; u.path = []; u.task = null; u.prone = false;
+    this.toast(v.driver === u ? `${u.def.name} al volante del ${v.T.name.toLowerCase()}` : `${u.def.name} sube al ${v.T.name.toLowerCase()}`);
+    if (v.driver !== u && !v.driver && !this.units.some(x => x.alive && v.canDrive(x))) this.toast('Nadie puede conducir este vehículo', true);
+    HUD.dirty = true;
+  },
+
+  leaveVehicle(u) {
+    const v = u.inVehicle; if (!v) return;
+    if (v.driver === u) { v.driver = null; v.path = []; if (v.moving) { v.moving = false; v.mark(true); } }
+    v.passengers = v.passengers.filter(x => x !== u);
+    u.inVehicle = null;
+    const f = Level.nearestFree(Math.floor(v.x), Math.floor(v.y), 4, { x: v.x, y: v.y + 3 });
+    if (f) { u.x = f.x + 0.5; u.y = f.y + 0.5; }
+    HUD.dirty = true;
+  },
+
+  // Robo de bolsillos (Ladrón)
+  pickpocket(u, e) {
+    const got = [];
+    for (const [id, n] of e.pocket) { if (Inv.add(u.inv, id, n)) got.push(ITEMS[id].name); if (id === 'codes') this.flags.codes = true; }
+    e.pocket = [];
+    const chips = e.loot.filter(l => l[0] === 'chip').reduce((a, l) => a + l[1], 0);
+    if (chips) { this.chips += chips; got.push(chips + ' chip' + (chips > 1 ? 's' : '')); e.loot = e.loot.filter(l => l[0] !== 'chip'); }
+    this.toast(got.length ? 'Robado sin que se dé cuenta: ' + got.join(', ') : 'Bolsillos vacíos');
+    Sfx.play('select'); HUD.dirty = true;
   },
 
   camCenter() { return { x: Render.target.x, y: Render.target.z }; },
@@ -91,13 +188,26 @@ const G = {
     this.shake = Math.max(this.shake, Math.min(1.2, r / 4));
     for (const e of this.enemies) if (e.state !== 'dead' && !e.hidden && !e.carried && dist(e.x, e.y, x, y) <= r) { e.kill('boom'); this.stats.kills++; }
     for (const u of this.units) if (u.alive && dist(u.x, u.y, x, y) <= r) u.damage(500, this, u.def.name + ' ha muerto en una explosión.');
-    if (!Level.depot.destroyed && dist(x, y, Level.depot.x, Level.depot.y) <= r + 1.8) this.destroyDepot();
+    for (const t of Level.targets) {
+      if (t.destroyed) continue;
+      const p = t.prop, cx = p.x + p.w / 2, cy = p.y + p.h / 2, dd = Math.max(Math.abs(x - cx) - p.w / 2, Math.abs(y - cy) - p.h / 2, 0);
+      if (dd <= r * 0.6 + (t.radius || 1)) this.destroyTarget(t);
+    }
+    for (const v of this.vehicles) if (v.alive && dist(v.x, v.y, x, y) <= r + 1) v.damage(r * 120, this);
+    for (const m of Level.mines) if (!m.dead && dist(m.x, m.y, x, y) <= r) m.dead = true;
     this.noise(x, y, noiseR || NOISE.explosion);
+  },
+
+  destroyTarget(t) {
+    if (t.id === 'depot') return this.destroyDepot();
+    Level.destroyTarget(t); Render.refreshTarget(t);
+    const p = t.prop; FX.explosion(p.x + p.w / 2, p.y + p.h / 2, 3);
+    this.toast('¡Objetivo destruido!');
   },
 
   destroyDepot() {
     const b = Level.depot;
-    Level.destroyDepot(); Render.refreshDepot();
+    Level.destroyDepot(); Render.refreshTarget(Level.targets.find(t => t.id === 'depot'));
     FX.explosion(b.x - 1, b.y + 0.5, 4); FX.explosion(b.x + 1, b.y - 0.5, 4);
     this.shake = 1.3;
     for (const e of this.enemies) if (e.state !== 'dead' && dist(e.x, e.y, b.x, b.y) <= 5) { e.kill('boom'); this.stats.kills++; }
@@ -127,6 +237,7 @@ const G = {
     const list = src instanceof Enemy ? src.loot : src.items;
     const got = [], left = [];
     for (const [id, n] of list) {
+      if (id === 'chip') { this.chips += n; got.push(n + ' chip' + (n > 1 ? 's' : '') + ` (${this.chips}/${this.mission.chips || 0})`); continue; }
       if (Inv.add(u.inv, id, n)) got.push(ITEMS[id].name + (n > 1 ? ' ×' + n : ''));
       else left.push([id, n]);
     }
@@ -144,12 +255,31 @@ const G = {
     const run = this.runId; setTimeout(() => { if (this.runId === run) HUD.showEnd(false, msg); }, 1200);
   },
 
+  // Objetivos: los primarios se marcan al cumplirse; la misión acaba al cumplir el último (escapar)
   checkWin() {
-    if (this.over || !Level.depot.destroyed) return;
-    if (this.units.every(u => u.alive && !u.dying && Level.inExit(u.x, u.y))) {
+    if (this.over) return;
+    const M = this.mission;
+    M.objectives.forEach((o, i) => { if (!this.objState[i] && !o.final && o.check(this)) { this.objState[i] = true; this.toast('Objetivo cumplido: ' + o.text.split(':').pop().trim()); Sfx.play('select'); } });
+    (M.secondary || []).forEach((o, i) => { this.secState[i] = o.live ? o.check(this) : (this.secState[i] || o.check(this)); });
+    const rest = M.objectives.every((o, i) => o.final || this.objState[i]);
+    const fin = M.objectives.findIndex(o => o.final);
+    if (rest && fin >= 0 && M.objectives[fin].check(this)) {
+      this.objState[fin] = true;
       this.over = 'win'; Sfx.play('win');
+      const stars = this.rating(); Progress.record(M.id, stars.n, this.chips);
       const run = this.runId; setTimeout(() => { if (this.runId === run) HUD.showEnd(true); }, 600);
     }
+  },
+
+  // Evaluación de 5 estrellas (según la biblia): objetivos secundarios, sin alarmas, tiempo y bajas no letales
+  rating() {
+    const M = this.mission, crit = [['Objetivos principales cumplidos', true]];
+    (M.secondary || []).forEach((o, i) => crit.push(['Opcional: ' + o.text, !!this.secState[i]]));
+    crit.push(['Sin alarmas', this.stats.alarms === 0]);
+    crit.push(['En menos de ' + Math.round((M.par || 900) / 60) + ' minutos', this.time < (M.par || 900)]);
+    crit.push(['Más bajas no letales que letales', this.stats.ko > this.stats.kills]);
+    if (M.chips) crit.push([`Chips secretos: ${this.chips}/${M.chips}`, this.chips >= M.chips]);
+    return { n: Math.min(5, crit.filter(c => c[1]).length), crit };
   },
 
   // ---------- bucle ----------
@@ -178,6 +308,10 @@ const G = {
       if (!u.dying) u._countedDown = false;
     }
     for (const e of this.enemies) e.update(dt, this);
+    for (const v of this.vehicles) v.update(dt, this);
+    for (const c of Level.smokes) c.t -= dt;
+    Level.smokes = Level.smokes.filter(c => c.t > 0);
+    this.updateSpots(dt);
     for (const d of this.decoys) {
       d.t -= dt; d.next -= dt;
       if (d.next <= 0) { d.next = 2.5; this.noise(d.x, d.y, NOISE.decoy); this.fx.push({ k: 'ring', x: d.x, y: d.y, r: 2, t: 0.8, dur: 0.8 }); Sfx.play('whistle', d.x, d.y); }
@@ -202,10 +336,13 @@ const G = {
   save() {
     if (this.over) return;
     const snap = {
+      mission: this.mission.id, power: this.power, chips: this.chips, flags: this.flags, objState: this.objState,
+      targets: Level.targets.map(t => t.destroyed), interacts: Level.interacts.map(i => i.done), mines: Level.mines.map(m => [m.dead, m.revealed]),
+      doors: this.unlocked || [], vehicles: this.vehicles.map(v => ({ x: v.x, y: v.y, face: v.face, alive: v.alive, driver: v.driver ? v.driver.idx : -1, pass: v.passengers.map(p => p.idx) })),
       time: this.time, stats: this.stats, destroyed: Level.depot.destroyed, cut: this.cutFences,
       baits: this.baits.map(b => ({ x: b.x, y: b.y, type: b.type })), decoys: this.decoys, bombs: this.bombs,
       loot: Level.loot.map(l => l.items), rot: Render.rot,
-      units: this.units.map(u => ({ x: u.x, y: u.y, hp: u.hp, alive: u.alive, dying: u.dying, dyingT: u.dyingT, dis: u.disguised, pr: u.prone, face: u.face, inv: u.inv.items, carry: u.carry ? u.carry.id : null })),
+      units: this.units.map(u => ({ x: u.x, y: u.y, hp: u.hp, alive: u.alive, dying: u.dying, dyingT: u.dyingT, dis: u.disguised, pr: u.prone, face: u.face, inv: u.inv.items, carry: u.carry ? u.carry.id : null, tower: !!u.onTower, det: u.detector })),
       enemies: this.enemies.map(e => ({ x: e.x, y: e.y, face: e.face, state: e.state, cause: e.cause, wp: e.wp, downT: e.downT, drunkT: e.drunkT, hidden: e.hidden, carried: e.carried, disc: e.discovered, ls: e.lastSeen, loot: e.loot }))
     };
     try { localStorage.setItem('commandos3-save', JSON.stringify(snap)); this.toast('Partida guardada (Ctrl+L para cargar)'); }
@@ -217,8 +354,14 @@ const G = {
     try { snap = JSON.parse(localStorage.getItem('commandos3-save')); } catch (err) { snap = null; }
     if (!snap || !snap.units || !snap.units[0].inv) { this.toast('No hay partida guardada', true); return; }
     const sel = this.units.map(u => u.selected);
-    this.reset();
-    this.time = snap.time; this.stats = snap.stats;
+    this.reset(snap.mission || 'classic');
+    this.time = snap.time; this.stats = Object.assign({ bodies: 0 }, snap.stats);
+    this.chips = snap.chips || 0; this.flags = snap.flags || {}; if (snap.objState) this.objState = snap.objState;
+    (snap.targets || []).forEach((d, i) => { if (d && Level.targets[i] && !Level.targets[i].destroyed && Level.targets[i].id !== 'depot') { Level.destroyTarget(Level.targets[i]); Render.refreshTarget(Level.targets[i]); } });
+    (snap.interacts || []).forEach((d, i) => { if (Level.interacts[i]) Level.interacts[i].done = d; });
+    (snap.mines || []).forEach((m, i) => { if (Level.mines[i]) { Level.mines[i].dead = m[0]; Level.mines[i].revealed = m[1]; } });
+    for (const [tx, ty] of snap.doors || []) { Level.grid[ty][tx] = 'D'; Render.unlockDoor(tx, ty); }
+    if (snap.power === false) { this.power = false; Render.setPower(false); }
     for (const [tx, ty] of snap.cut || []) Level.grid[ty][tx] = '.';
     this.cutFences = snap.cut || []; if (this.cutFences.length) Render.rebuildFences();
     if (snap.destroyed) { Level.destroyDepot(); Render.refreshDepot(); this.depotFire(); }
@@ -228,8 +371,16 @@ const G = {
     snap.units.forEach((s, i) => {
       const u = this.units[i];
       Object.assign(u, { x: s.x, y: s.y, hp: s.hp, alive: s.alive, dying: s.dying, dyingT: s.dyingT, disguised: s.dis, prone: s.pr, face: s.face });
-      u.inv.items = s.inv;
+      u.inv.items = s.inv; u.detector = !!s.det;
+      if (s.tower && Level.towers[0]) { const t = Level.towers[0]; u.onTower = t; u.elev = t.elev; }
       u.selected = !!sel[i] && s.alive;
+    });
+    (snap.vehicles || []).forEach((sv, i) => {
+      const v = this.vehicles[i]; if (!v) return;
+      v.mark(false); Object.assign(v, { x: sv.x, y: sv.y, face: sv.face }); v.mark(true);
+      if (!sv.alive) { v.alive = false; v.mark(false); }
+      if (sv.driver >= 0) { v.driver = this.units[sv.driver]; v.driver.inVehicle = v; }
+      v.passengers = sv.pass.map(k => this.units[k]); v.passengers.forEach(p => { p.inVehicle = v; });
     });
     snap.enemies.forEach((s, i) => {
       const e = this.enemies[i];

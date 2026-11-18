@@ -45,6 +45,7 @@ const MAT_DEFS = {
   wood: ['siding', '#b48d64', 'siding', 0.85, 2],
   trim: ['siding', '#5c3e24', 'siding', 0.8, 1.5],
   stone: ['concrete', '#8f887a', 'concrete', 0.95, 1.5],
+  rockM: ['concrete', '#9a7f62', 'concrete', 0.95, 1.2],
   tiles: ['tiles', '#ffffff', 'tiles', 0.75, 1.8],
   slate: ['slate', '#9aa5b4', 'slate', 0.6, 1.6],
   metalRoof: ['metal', '#959a92', 'metal', 0.55, 2.2, 0.35],
@@ -218,7 +219,17 @@ const Buildings = {
       B.box('stone', wx1 - o, 0, wz0 - o, wx1 + o, pl, wz1);
       B.box('stone', wx0, 0, wz0 - o, wx1, pl, wz0 + o);
     };
-    walls(full, H, true);
+    if (b.ruin) { // ruina: muros a distintas alturas, sin tejado, con escombros
+      const rr = mulberry32(b.x * 13 + b.y * 7);
+      for (let ty = b.y; ty < b.y + b.h; ty++) for (let tx = b.x; tx < b.x + b.w; tx++) {
+        if (Level.at(tx, ty) !== '#') continue;
+        const hh = H * (0.35 + rr() * 0.65), x0 = tx === b.x ? wx0 : tx + 0.5 - th / 2 - (tx === b.x + b.w - 1 ? 0 : 0.5), x1 = tx === b.x + b.w - 1 ? wx1 : tx + 0.5 + th / 2 + (tx === b.x ? 0 : 0.5);
+        const z0 = ty === b.y ? wz0 : ty + 0.5 - th / 2 - (ty === b.y + b.h - 1 ? 0 : 0.5), z1 = ty === b.y + b.h - 1 ? wz1 : ty + 0.5 + th / 2 + (ty === b.y ? 0 : 0.5);
+        const vert = tx === b.x || tx === b.x + b.w - 1;
+        full.box(fac, vert ? (tx === b.x ? wx0 : wx1 - th) : x0, 0, vert ? z0 : (ty === b.y ? wz0 : wz1 - th), vert ? (tx === b.x ? wx0 + th : wx1) : x1, hh, vert ? z1 : (ty === b.y ? wz0 + th : wz1));
+      }
+      for (let k = 0; k < 10; k++) { const cx = b.x + 1 + rr() * (b.w - 2), cz = b.y + 1 + rr() * (b.h - 2), sz = 0.2 + rr() * 0.35; full.box(fac, cx - sz, 0, cz - sz * 0.7, cx + sz, sz * 0.6, cz + sz * 0.7); }
+    } else walls(full, H, true);
     walls(cut, 0.6, false);
     cut.box('stone', wx0, 0.6, wz0, wx1, 0.66, wz0 + th);
     cut.box('stone', wx0, 0.6, wz0, wx0 + th, 0.66, wz1);
@@ -290,10 +301,25 @@ const Buildings = {
     // tejado
     const o = 0.32, R = b.R * 1.55;
     const ex0 = wx0 - o, ex1 = wx1 + o, ez0 = wz0 - o, ez1 = wz1 + o, zm = (ez0 + ez1) / 2;
-    const roofKey = { terracotta: 'tiles', slate: 'slate', metal: 'metalRoof' }[b.roof];
+    const roofKey = { terracotta: 'tiles', slate: 'slate', metal: 'metalRoof', flat: 'concrete', dome: 'white' }[b.roof];
     const A = [ex0, H, ez0], B = [ex1, H, ez0], C = [ex1, H, ez1], D = [ex0, H, ez1];
-    let tris;
-    if (b.roof === 'metal') {
+    let tris = null;
+    if (b.roof === 'none') { /* sin tejado */ }
+    else if (b.roof === 'flat') { // azotea con pretil
+      full.box('concrete', wx0 - 0.05, H, wz0 - 0.05, wx1 + 0.05, H + 0.12, wz1 + 0.05);
+      full.box(fac, wx0 - 0.05, H + 0.12, wz0 - 0.05, wx1 + 0.05, H + 0.42, wz0 + 0.12);
+      full.box(fac, wx0 - 0.05, H + 0.12, wz1 - 0.12, wx1 + 0.05, H + 0.42, wz1 + 0.05);
+      full.box(fac, wx0 - 0.05, H + 0.12, wz0, wx0 + 0.12, H + 0.42, wz1);
+      full.box(fac, wx1 - 0.12, H + 0.12, wz0, wx1 + 0.05, H + 0.42, wz1);
+      full.box('rubber', wx0 + 0.6, H + 0.12, wz0 + 0.5, wx0 + 1.2, H + 0.5, wz0 + 1.0);
+    } else if (b.roof === 'dome') { // cúpula del radiotelescopio con su ranura
+      const cx = (wx0 + wx1) / 2, cz = (wz0 + wz1) / 2, rad = Math.min(wx1 - wx0, wz1 - wz0) / 2 + 0.2;
+      const dg = new THREE.SphereGeometry(rad, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2).toNonIndexed(); dg.translate(cx, H, cz);
+      full.add('white', Geo.worldUV(dg, 2));
+      const slot = new THREE.BoxGeometry(0.9, rad * 0.3, rad * 1.02).toNonIndexed(); slot.translate(0, rad * 0.86, rad * 0.25); slot.rotateX(-0.45); slot.translate(cx, H, cz);
+      full.add('rubber', Geo.worldUV(slot, 1));
+      full.box('concrete', wx0 - 0.05, H - 0.1, wz0 - 0.05, wx1 + 0.05, H + 0.08, wz1 + 0.05);
+    } else if (b.roof === 'metal') {
       const P = [ex0, H + R, zm], Q = [ex1, H + R, zm];
       tris = [[A, B, Q], [A, Q, P], [D, P, Q], [D, Q, C]];
       // hastiales
@@ -305,12 +331,14 @@ const Buildings = {
       const P = [Math.min(ex0 + d, (ex0 + ex1) / 2), H + R, zm], Q = [Math.max(ex1 - d, (ex0 + ex1) / 2), H + R, zm];
       tris = [[A, B, Q], [A, Q, P], [D, P, Q], [D, Q, C], [A, P, D], [B, C, Q]];
     }
-    full.add(roofKey, Geo.tris(tris, Mats.scale(roofKey)));
+    if (tris) full.add(roofKey, Geo.tris(tris, Mats.scale(roofKey)));
+    if (tris) {
     // canto del alero, canalones y bajantes
     full.box('trim', ex0, H - 0.1, ez1 - 0.06, ex1, H, ez1);
     full.box('trim', ex0, H - 0.1, ez0, ex0 + 0.06, H, ez1);
     full.box('gutter', ex0, H - 0.2, ez1, ex1, H - 0.08, ez1 + 0.1);
     for (const gx of [wx0 + 0.15, wx1 - 0.15]) full.box('gutter', gx - 0.04, 0.05, wz1 + 0.02, gx + 0.04, H - 0.12, wz1 + 0.1);
+    }
     full.box('stone', dx - dw - 0.1, 0, wz1, dx + dw + 0.1, 0.12, wz1 + 0.35);
     if (b.chimney) {
       const cx = ex0 + (ex1 - ex0) * 0.7, cz = ez0 + (ez1 - ez0) * 0.4;
@@ -330,6 +358,15 @@ const Buildings = {
   furniture(B, b, x0, z0, x1, z1) {
     const r = mulberry32(b.x * 3 + b.y);
     const w = x1 - x0, d = z1 - z0;
+    if (b.furn === 'servers') { // racks de servidores con luces
+      for (let x = x0 + 0.4; x + 0.6 < x1; x += 1.3) for (const zz of [z0 + 0.4, z0 + 2.4]) {
+        B.box('rubber', x, 0, zz, x + 0.6, 1.5, zz + 0.8);
+        for (let k = 0; k < 5; k++) B.box(k % 2 ? 'lamp' : 'shutter', x + 0.08, 0.25 + k * 0.25, zz + 0.81, x + 0.14, 0.29 + k * 0.25, zz + 0.83);
+      }
+      B.box('door', x0 + 0.5, 0, z1 - 1.4, x0 + 2.5, 0.8, z1 - 0.8);
+      return;
+    }
+    if (b.furn === 'ruin') return;
     if (b.furn === 'bunks') {
       for (let x = x0 + 0.2; x + 0.8 < x1; x += 1.15) {
         B.box('trim', x, 0, z0 + 0.1, x + 0.8, 0.35, z0 + 1.7);
@@ -377,6 +414,93 @@ const Props = {
     const x0 = p.x, z0 = p.y, x1 = p.x + p.w, z1 = p.y + p.h, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     const r = mulberry32((p.seed || 1) * 7 + p.x);
     switch (p.type) {
+      case 'blockwall': { // muro de hormigón que cierra el cañón
+        if (p.destroyed) { for (let k = 0; k < 12; k++) { const g = new THREE.BoxGeometry(0.3 + r() * 0.6, 0.15 + r() * 0.35, 0.3 + r() * 0.5).toNonIndexed(); g.rotateY(r() * 6); g.translate(x0 - 0.5 + r() * 2, 0.1, z0 + r() * p.h); B.add('concrete', Geo.worldUV(g, 1.5)); } break; }
+        B.box('concrete', x0 + 0.1, 0, z0, x1 - 0.1, 2.4, z1);
+        for (let z = z0; z < z1; z += 1) B.box('stone', x0 + 0.05, 2.4, z + 0.05, x1 - 0.05, 2.55, z + 0.95);
+        B.box('red', x1 - 0.08, 1.2, z0 + p.h / 2 - 0.6, x1 - 0.04, 1.6, z0 + p.h / 2 + 0.6);
+        break;
+      }
+      case 'minesign': {
+        B.box('post', cx - 0.04, 0, cz - 0.04, cx + 0.04, 1.0, cz + 0.04);
+        const g = new THREE.BoxGeometry(0.45, 0.45, 0.03).toNonIndexed(); g.rotateZ(Math.PI / 4); g.translate(cx, 1.05, cz); B.add('red', Geo.worldUV(g, 1));
+        break;
+      }
+      case 'barrier': {
+        B.box('olive', cx - 0.12, 0, z0 - 0.2, cx + 0.12, 1.0, z0 + 0.1);
+        for (let k = 0; k < 5; k++) B.box(k % 2 ? 'white' : 'red', cx - 0.05, 0.85, z0 + 0.1 + k * 0.4, cx + 0.05, 0.95, z0 + 0.5 + k * 0.4);
+        break;
+      }
+      case 'watertower': {
+        const Hp = 3.6;
+        for (const [a, c] of [[x0 + 0.15, z0 + 0.15], [x1 - 0.15, z0 + 0.15], [x0 + 0.15, z1 - 0.15], [x1 - 0.15, z1 - 0.15]]) B.box('post', a - 0.08, 0, c - 0.08, a + 0.08, Hp, c + 0.08);
+        for (const h of [1.2, 2.4]) { B.box('post', x0 + 0.1, h, z0 + 0.1, x1 - 0.1, h + 0.08, z0 + 0.2); B.box('post', x0 + 0.1, h, z1 - 0.2, x1 - 0.1, h + 0.08, z1 - 0.1); }
+        this.cyl(B, 'tank', cx, Hp + 0.8, cz, 1.25, 1.6, 'y', 24);
+        const cap = new THREE.ConeGeometry(1.32, 0.6, 24).toNonIndexed(); cap.translate(cx, Hp + 1.9, cz); B.add('metalRoof', Geo.worldUV(cap, 1.5));
+        B.box('floor', x0 - 0.3, Hp - 0.05, z0 - 0.3, x1 + 0.3, Hp + 0.05, z1 + 0.3);
+        for (let h = 0.2; h < Hp; h += 0.35) B.box('wire', cx - 0.25, h, z1 + 0.25, cx + 0.25, h + 0.04, z1 + 0.29);
+        break;
+      }
+      case 'tank': { // carro de combate ligero
+        B.box('oliveDark', x0 + 0.1, 0.05, z0 + 0.05, x1 - 0.1, 0.55, z0 + 0.5); B.box('oliveDark', x0 + 0.1, 0.05, z1 - 0.5, x1 - 0.1, 0.55, z1 - 0.05);
+        for (let x = x0 + 0.4; x < x1 - 0.3; x += 0.6) { this.cyl(B, 'rubber', x, 0.28, z0 + 0.27, 0.22, 0.46, 'z', 12); this.cyl(B, 'rubber', x, 0.28, z1 - 0.27, 0.22, 0.46, 'z', 12); }
+        B.box('olive', x0 + 0.2, 0.5, z0 + 0.2, x1 - 0.2, 1.05, z1 - 0.2);
+        this.cyl(B, 'olive', cx - 0.2, 1.3, cz, 0.62, 0.5, 'y', 18);
+        this.cyl(B, 'oliveDark', cx + 1.0, 1.3, cz, 0.08, 2.0, 'x', 10);
+        B.box('rubber', cx - 0.5, 1.55, cz - 0.15, cx - 0.2, 1.65, cz + 0.15);
+        break;
+      }
+      case 'car': {
+        const col = ['olive', 'barrelR', 'tank', 'shutter'][(p.seed || 0) % 4];
+        for (const wx of [x0 + 0.35, x1 - 0.35]) for (const zz of [z0 + 0.12, z1 - 0.12]) this.cyl(B, 'rubber', wx, 0.2, zz, 0.2, 0.14, 'z', 12);
+        B.box(col, x0 + 0.05, 0.2, z0 + 0.08, x1 - 0.05, 0.6, z1 - 0.08);
+        B.box(col, x0 + 0.5, 0.6, z0 + 0.12, x1 - 0.4, 0.95, z1 - 0.12);
+        B.box('glass', x0 + 0.45, 0.62, z0 + 0.1, x1 - 0.35, 0.9, z1 - 0.1);
+        break;
+      }
+      case 'carport': {
+        for (const [a, c] of [[x0 + 0.2, z0 + 0.2], [x1 - 0.2, z0 + 0.2], [x0 + 0.2, z1 - 0.2], [x1 - 0.2, z1 - 0.2]]) B.box('gutter', a - 0.06, 0, c - 0.06, a + 0.06, 2.2, c + 0.06);
+        B.box('metalRoof', x0, 2.2, z0, x1, 2.3, z1);
+        break;
+      }
+      case 'substation': { // transformadores con aisladores
+        B.box('concrete', x0 - 0.2, 0, z0 - 0.2, x1 + 0.2, 0.15, z1 + 0.2);
+        for (let k = 0; k < 2; k++) {
+          const bx = x0 + 0.3 + k * 2;
+          B.box('tank', bx, 0.15, z0 + 0.2, bx + 1.4, 1.6, z1 - 0.2);
+          for (let f = 0; f < 6; f++) B.box('gutter', bx - 0.05, 0.3 + f * 0.2, z0 + 0.25, bx, 0.38 + f * 0.2, z1 - 0.25);
+          for (let q = 0; q < 3; q++) { this.cyl(B, 'white', bx + 0.3 + q * 0.4, 1.9, cz, 0.06, 0.6, 'y', 8); this.cyl(B, 'white', bx + 0.3 + q * 0.4, 2.0, cz, 0.1, 0.06, 'y', 8); }
+        }
+        B.box('red', x1 - 0.5, 0.6, z1 - 0.18, x1 - 0.1, 0.9, z1 - 0.15);
+        break;
+      }
+      case 'dish': { // antena parabólica del radiotelescopio
+        B.box('concrete', x0 + 1.5, 0, z0 + 1.5, x1 - 1.5, 0.6, z1 - 1.5);
+        this.cyl(B, 'tank', cx, 1.6, cz, 0.45, 2.0, 'y', 16);
+        B.box('oliveDark', cx - 0.5, 2.4, cz - 0.5, cx + 0.5, 3.0, cz + 0.5);
+        const dg = new THREE.SphereGeometry(3.2, 32, 12, 0, Math.PI * 2, 0, 0.75).toNonIndexed();
+        dg.scale(1, 0.5, 1); dg.rotateX(Math.PI); dg.rotateX(-0.75); dg.translate(cx, 4.6, cz + 0.4);
+        const mg = Mats.get('white'); B.add('white', Geo.worldUV(dg, 3)); mg.side = THREE.DoubleSide;
+        this.cyl(B, 'gutter', cx, 4.8, cz - 0.2, 0.05, 2.6, 'y', 6);
+        B.box('rubber', cx - 0.4, 0.6, z1 - 1.3, cx + 0.4, 1.2, z1 - 0.9); // motor de rotación
+        break;
+      }
+      case 'lamp': {
+        B.box('gutter', cx - 0.05, 0, cz - 0.05, cx + 0.05, 3.0, cz + 0.05);
+        B.box('gutter', cx - 0.05, 2.95, cz - 0.05, cx + 0.45, 3.02, cz + 0.05);
+        B.box('lamp', cx + 0.3, 2.86, cz - 0.08, cx + 0.5, 2.96, cz + 0.08);
+        break;
+      }
+      case 'searchlight': {
+        B.box('gutter', cx - 0.08, 0, cz - 0.08, cx + 0.08, 4.0, cz + 0.08);
+        this.cyl(B, 'oliveDark', cx, 4.15, cz, 0.28, 0.4, 'y', 14);
+        this.cyl(B, 'lamp', cx, 4.15, cz, 0.22, 0.42, 'y', 14);
+        break;
+      }
+      case 'stairs': {
+        for (let k = 0; k < 4; k++) B.box('concrete', x0, 0, z0 + k * 0.25, x1, 0.2 + k * 0.12, z0 + (k + 1) * 0.25);
+        break;
+      }
       case 'crate': {
         const s = 0.08, h = 0.72;
         B.box('crate', x0 + s, 0, z0 + s, x1 - s, h, z1 - s);
@@ -509,6 +633,18 @@ const Props = {
         break;
       }
     }
+  },
+
+  // Roca: icosaedro deformado con la textura de piedra
+  rock(B, x, z, s, seed, tall) {
+    const r = mulberry32((seed || 1) * 17 + 3);
+    const g = new THREE.IcosahedronGeometry(0.6 * s, 1).toNonIndexed(), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i), k = 1 + (Noise.value(vx * 3 + seed, vz * 3 + vy * 2) - 0.5) * 0.6;
+      p.setXYZ(i, vx * k, Math.max(-0.05, vy * k * (tall || 0.75)), vz * k);
+    }
+    g.computeVertexNormals(); g.rotateY(r() * 6); g.translate(x, 0.6 * s * 0.25, z);
+    B.add('rockM', Geo.worldUV(g, 1.5));
   },
 
   fences(B) {
@@ -645,7 +781,18 @@ const SOLDIER_KIT = {
   sniper:   { tunic: '#5d4a33', arms: '#5d4a33', hands: '#3a2616', coat: true, coatCol: '#5d4a33', pants: '#6a5a3d', boots: '#22170e', bootTop: 0.3, belt: '#2c1f13', skin: '#e0b48e', hat: 'flatcap', hatCol: '#4a3a26', weapon: 'sniper', height: 1.85, width: 0.86, build: { chest: 0.82, belly: 0.78, hips: 0.85, arms: 0.8, legs: 0.84, shoulders: 0.92, head: 0.96 } },
   spy:      { tunic: '#86745a', arms: '#86745a', coat: true, coatCol: '#86745a', pants: '#272a33', boots: '#0f0f10', bootTop: 0.1, belt: '#6a6252', collar: '#e6e2d6', skin: '#dcb08a', hat: 'fedora', hatCol: '#38383d', weapon: null, shirt: '#e6e2d6', height: 1.82, width: 0.92, build: { chest: 0.9, belly: 0.88, hips: 0.9, arms: 0.88, legs: 0.88, shoulders: 0.97 } },
   spyDis:   { tunic: '#6a6b55', arms: '#6a6b55', pants: '#8a8268', boots: '#0d0c0b', bootTop: 0.31, belt: '#2a1d12', collar: '#c9c2a2', skin: '#dcb08a', hat: 'cap', hatCol: '#5d6551', weapon: 'pistol', height: 1.82, width: 0.92, build: { chest: 0.9, belly: 0.88, hips: 0.9, arms: 0.88, legs: 0.88, shoulders: 0.97 } },
-  sapper:   { tunic: '#5d583a', arms: '#5d583a', pants: '#5a5638', boots: '#221b13', bootTop: 0.11, gaiters: '#8a7f5c', belt: '#3c3624', beltW: 0.03, skin: '#d8a982', hat: 'brodie', hatCol: '#59593a', weapon: null, pack: '#4c472e', height: 1.78, width: 1.12, build: { chest: 1.18, belly: 1.32, hips: 1.2, arms: 1.15, legs: 1.15, hipW: 1.08, shoulders: 1.05 } }
+  sapper:   { tunic: '#5d583a', arms: '#5d583a', pants: '#5a5638', boots: '#221b13', bootTop: 0.11, gaiters: '#8a7f5c', belt: '#3c3624', beltW: 0.03, skin: '#d8a982', hat: 'brodie', hatCol: '#59593a', weapon: null, pack: '#4c472e', height: 1.78, width: 1.12, build: { chest: 1.18, belly: 1.32, hips: 1.2, arms: 1.15, legs: 1.15, hipW: 1.08, shoulders: 1.05 } },
+  driver:   { tunic: '#5a3a22', arms: '#5a3a22', hands: '#2a1d14', pants: '#55603a', boots: '#2a1d14', bootTop: 0.14, belt: '#2a1d14', collar: '#2e2a26', skin: '#d4a07c', hat: 'flatcap', hatCol: '#3a3328', goggles: true, weapon: null, height: 1.75, width: 0.98, build: { chest: 1.0, belly: 0.98, arms: 0.98, legs: 0.97 } },
+  thief:    { tunic: '#141a24', arms: '#141a24', pants: '#1c1f26', boots: '#0d0d0f', bootTop: 0.08, belt: '#0d0d0f', collar: '#141a24', skin: '#dcb08a', hat: 'beanie', hatCol: '#1c1f28', weapon: null, height: 1.63, width: 0.84, build: { chest: 0.82, belly: 0.8, hips: 0.85, arms: 0.8, legs: 0.82, shoulders: 0.9, head: 1.02 } },
+  seductress: { tunic: '#7a1426', arms: '#7a1426', coat: true, coatCol: '#7a1426', pants: '#7a1426', boots: '#1a0c0e', bootTop: 0.05, belt: '#3a0a12', collar: '#e0b494', skin: '#e0b494', hat: 'hair', hatCol: '#3a2216', weapon: null, height: 1.74, width: 0.82, build: { chest: 0.86, belly: 0.74, hips: 1.04, arms: 0.74, hands: 0.85, legs: 0.8, shoulders: 0.84, hipW: 0.95, head: 0.94 } },
+  // enemigos modernos (biblia de misiones)
+  dsoldier:  { tunic: '#b49a6c', arms: '#b49a6c', pants: '#a68c60', boots: '#5a4630', bootTop: 0.17, belt: '#4a3c28', camo: ['#9c8258', '#c8b088', '#7e6a48'], skin: '#c89a74', hat: 'mhelmet', hatCol: '#a08860', weapon: 'smg', height: 1.78, build: {} },
+  dsergeant: { tunic: '#a8905f', arms: '#a8905f', pants: '#9a8456', boots: '#5a4630', bootTop: 0.17, belt: '#4a3c28', camo: ['#94784e', '#c0a87c', '#76623e'], skin: '#c89a74', hat: 'boonie', hatCol: '#9a8456', weapon: 'smg', height: 1.78, width: 1.03, build: { chest: 1.06, belly: 1.06 } },
+  dofficer:  { tunic: '#7a6a4a', arms: '#7a6a4a', pants: '#6a5c40', boots: '#2a1d12', bootTop: 0.28, belt: '#2a1d12', collar: '#5a4a30', skin: '#c89a74', hat: 'beret', hatCol: '#7a1a1a', weapon: 'pistol', height: 1.81, width: 0.97, build: {} },
+  nsoldier:  { tunic: '#2c3036', arms: '#2c3036', pants: '#262a30', boots: '#0e0f11', bootTop: 0.17, belt: '#141518', camo: ['#22262c', '#3a4048', '#2c3036'], skin: '#c89a74', hat: 'beanie', hatCol: '#1a1c20', weapon: 'smg', height: 1.78, build: {} },
+  nsergeant: { tunic: '#30353c', arms: '#30353c', pants: '#2a2e34', boots: '#0e0f11', bootTop: 0.17, belt: '#141518', skin: '#c89a74', hat: 'mhelmet', hatCol: '#2a2e34', weapon: 'smg', height: 1.78, width: 1.03, build: { chest: 1.06, belly: 1.06 } },
+  nofficer:  { tunic: '#3a4048', arms: '#3a4048', pants: '#30353c', boots: '#0b0b0d', bootTop: 0.28, belt: '#141518', collar: '#e0dcd0', skin: '#d6a882', hat: 'cap', hatCol: '#2a2e34', weapon: 'pistol', height: 1.81, width: 0.97, build: {} },
+  tech:      { tunic: '#2c4a78', arms: '#2c4a78', pants: '#2a4470', boots: '#2a2420', bootTop: 0.1, belt: '#c8c4b8', beltW: 0.008, collar: '#2c4a78', skin: '#d8ac86', hat: 'flatcap', hatCol: '#d8d4c8', weapon: null, height: 1.75, width: 1.02, build: { belly: 1.1 } },
 };
 
 const Soldier = {

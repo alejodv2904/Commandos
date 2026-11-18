@@ -112,17 +112,14 @@ const HUD = {
       c.querySelector('.fill').style.width = (u.hp / u.maxHp * 100) + '%';
       c.querySelector('.dy').textContent = u.dying ? Math.ceil(u.dyingT) : '';
     });
-    const o = document.getElementById('objectives');
-    const done1 = Level.depot.destroyed, docs = G.hasDocs();
-    const allIn = G.units.every(u => u.alive && Level.inExit(u.x, u.y));
+    const o = document.getElementById('objectives'), M = G.mission;
     const t = Math.floor(G.time), mm = String(Math.floor(t / 60)).padStart(2, '0'), ss = String(t % 60).padStart(2, '0');
     const bomb = G.bombs[0];
-    o.innerHTML = `<h3>OBJETIVOS</h3>
-      <div class="${done1 ? 'done' : ''}">⚑ ${done1 ? '☑' : '☐'} Volar el depósito de combustible</div>
-      <div class="${done1 && allIn ? 'done' : ''}">⚑ ${done1 && allIn ? '☑' : '☐'} Reunir a los 4 comandos en la extracción</div>
-      <div class="sec ${docs ? 'done' : ''}">⚐ ${docs ? '☑' : '☐'} Opcional: robar los documentos del puesto de mando</div>
+    const prim = M.objectives.map((ob, i) => `<div class="${G.objState[i] ? 'done' : ''}">⚑ ${G.objState[i] ? '☑' : '☐'} ${ob.text}</div>`).join('');
+    const sec = (M.secondary || []).map((ob, i) => `<div class="sec ${G.secState[i] ? 'done' : ''}">⚐ ${G.secState[i] ? '☑' : '☐'} Opcional: ${ob.text}</div>`).join('');
+    o.innerHTML = `<h3>${M.num ? M.num + ' · ' : ''}${M.name.toUpperCase()}</h3>${prim}${sec}
       ${bomb ? `<div class="bomb">⏱ Detonación en ${Math.ceil(bomb.t)} s</div>` : ''}
-      <div class="meta">${mm}:${ss} · Alarmas: ${G.stats.alarms}${G.paused ? ' · EN PAUSA' : ''}</div>`;
+      <div class="meta">${mm}:${ss} · Alarmas: ${G.stats.alarms}${M.chips ? ` · Chips: ${G.chips}/${M.chips}` : ''}${G.night ? (G.power ? ' · Focos encendidos' : ' · Sin electricidad') : ''}${G.paused ? ' · EN PAUSA' : ''}</div>`;
   },
 
   // ---------- mapa táctico (F9) ----------
@@ -166,15 +163,100 @@ const HUD = {
   },
 
   // ---------- pantallas ----------
-  showIntro() {
+  // ---------- menú principal ----------
+  showMenu() {
+    G.overlayOpen = true;
+    const ov = document.getElementById('overlay'); ov.className = 'show menu';
+    const has = (() => { try { return !!localStorage.getItem('commandos3-save'); } catch (e) { return false; } })();
+    ov.innerHTML = `<div class="mainmenu">
+      <div class="mm-title">COMMANDOS 3</div><div class="mm-sub">Hombres de Valor</div>
+      <div class="mm-btns">
+        <button data-a="camp">Campaña</button>
+        ${has ? '<button data-a="load">Cargar partida guardada</button>' : ''}
+        <button data-a="help">Controles y reglas</button>
+      </div>
+      <div class="mm-foot">Táctica y sigilo en tiempo real · Texturas CC0 de ambientCG · Three.js</div></div>`;
+    ov.querySelectorAll('button').forEach(b => b.onclick = () => {
+      Sfx.ensure();
+      if (b.dataset.a === 'camp') this.showCampaign();
+      else if (b.dataset.a === 'help') this.showIntro(true);
+      else { this.closeOverlay(); G.load(); }
+    });
+  },
+
+  closeOverlay() { G.overlayOpen = false; document.getElementById('overlay').className = ''; },
+
+  // ---------- selector de campaña (21 misiones de la biblia) ----------
+  showCampaign(sel) {
+    G.overlayOpen = true;
+    const ov = document.getElementById('overlay'); ov.className = 'show menu';
+    Progress.load();
+    const status = m => {
+      if (m.chapter === 'Bonus') return Progress.bonusUnlocked(m.id) ? 'desbloqueada' : 'bloqueada';
+      return m.playable ? 'jugable' : 'desarrollo';
+    };
+    const groups = ['Entrenamiento', 'Campaña', 'Bonus', 'Extra'];
+    sel = sel || (MISSIONS.find(m => m.playable && !Progress.get(m.id).done) || MISSIONS.find(m => m.playable)).id;
+    const card = m => {
+      const p = Progress.get(m.id), st = status(m);
+      return `<div class="mcard ${st} ${m.id === sel ? 'sel' : ''}" data-id="${m.id}"><span class="mn">${m.num}</span><span class="mt">${m.name}</span>
+        <span class="ms">${p.done ? '★'.repeat(p.stars || 0) : st === 'jugable' ? '▶' : st === 'bloqueada' ? '🔒' : '…'}</span></div>`;
+    };
+    const m = MISSIONS_BY_ID[sel], p = Progress.get(m.id), st = status(m);
+    const bonusOf = MISSIONS.find(x => x.bonus === m.id);
+    ov.innerHTML = `<div class="campaign">
+      <div class="c-list">${groups.map(g => `<h4>${g.toUpperCase()}</h4>${MISSIONS.filter(x => x.chapter === g).map(card).join('')}`).join('')}</div>
+      <div class="c-detail dossier">
+        <div class="hdr">${m.chapter.toUpperCase()} ${m.num} · ${m.place.toUpperCase()}</div>
+        <h1>${m.name}</h1>
+        <p>${m.desc}</p>
+        <table>
+          <tr><td>Escuadrón</td><td>${m.squad && m.squad.map ? m.squad.map(q => UNIT_DEFS[q.type].name).join(', ') : m.squad}</td></tr>
+          ${m.weather ? `<tr><td>Clima</td><td>${WEATHER[m.weather].name}</td></tr>` : ''}
+          ${p.done ? `<tr><td>Mejor resultado</td><td>${'★'.repeat(p.stars || 0)}${'☆'.repeat(5 - (p.stars || 0))}${m.chips ? ` · chips ${p.chips || 0}/${m.chips}` : ''}</td></tr>` : ''}
+          ${m.bonus ? `<tr><td>Bonus</td><td>Reúne los ${m.chips || 20} chips para desbloquear «${MISSIONS_BY_ID[m.bonus].name}»</td></tr>` : ''}
+          ${bonusOf ? `<tr><td>Se desbloquea</td><td>Con los chips de «${bonusOf.name}»</td></tr>` : ''}
+        </table>
+        ${m.objectives ? `<h4>OBJETIVOS</h4>${m.objectives.map(o => `<p class="small">⚑ ${o.text}</p>`).join('')}${(m.secondary || []).map(o => `<p class="small">⚐ Opcional: ${o.text}</p>`).join('')}` : ''}
+        ${st === 'jugable' ? '<button id="playBtn">Ver informe de la misión</button>'
+          : st === 'desbloqueada' ? '<p class="small"><b>Desbloqueada.</b> Esta misión de bonificación aún está en desarrollo.</p>'
+          : st === 'bloqueada' ? '<p class="small">Bloqueada: reúne todos los chips de su misión principal.</p>'
+          : '<p class="small"><b>En desarrollo.</b> Esta misión de la biblia todavía no es jugable.</p>'}
+        <button id="backBtn" class="ghost">Volver al menú</button>
+      </div></div>`;
+    ov.querySelectorAll('.mcard').forEach(c => c.onclick = () => this.showCampaign(c.dataset.id));
+    const pb = document.getElementById('playBtn'); if (pb) pb.onclick = () => this.showBriefing(m.id);
+    document.getElementById('backBtn').onclick = () => this.showMenu();
+  },
+
+  // ---------- informe de la misión ----------
+  showBriefing(id) {
+    const M = MISSIONS_BY_ID[id];
+    G.overlayOpen = true;
+    const ov = document.getElementById('overlay'); ov.className = 'show';
+    ov.innerHTML = `<div class="dossier">
+      <div class="stamp">ALTO SECRETO</div>
+      <div class="hdr">${M.chapter.toUpperCase()} ${M.num} · ${M.place.toUpperCase()}</div>
+      <h1>${M.name}</h1><h2>${WEATHER[M.weather].name} · Escuadrón: ${M.squad.map(q => UNIT_DEFS[q.type].name).join(', ')}</h2>
+      <p>${M.briefing}</p>
+      <h4>OBJETIVOS PRINCIPALES</h4>${M.objectives.map(o => `<p class="small">⚑ ${o.text}</p>`).join('')}
+      ${(M.secondary || []).length ? `<h4>OBJETIVOS SECUNDARIOS</h4>${M.secondary.map(o => `<p class="small">⚐ ${o.text}</p>`).join('')}` : ''}
+      <h4>EQUIPO</h4><table>${M.squad.map(q => `<tr><td>${UNIT_DEFS[q.type].name}</td><td>${(q.inv || UNIT_DEFS[q.type].inv[2]).map(i => ITEMS[i[0]].name + (i[3] > 1 ? ' ×' + i[3] : '')).join(', ')}</td></tr>`).join('')}</table>
+      <button id="goBtn">Comenzar misión</button> <button id="helpBtn" class="ghost">Controles</button> <button id="backBtn" class="ghost">Volver</button></div>`;
+    document.getElementById('goBtn').onclick = () => { Sfx.ensure(); G.reset(M.id); this.closeOverlay(); };
+    document.getElementById('helpBtn').onclick = () => this.showIntro(true, () => this.showBriefing(id));
+    document.getElementById('backBtn').onclick = () => this.showCampaign(M.id);
+  },
+
+  showIntro(fromMenu, back) {
     G.overlayOpen = true;
     const ov = document.getElementById('overlay');
     ov.className = 'show';
     ov.innerHTML = `<div class="dossier">
       <div class="stamp">ALTO SECRETO</div>
-      <div class="hdr">MANDO DE OPERACIONES COMBINADAS · EXPEDIENTE Nº 1943-07</div>
-      <h1>COMMANDOS 3</h1><h2>Hombres de Valor — Operación Depósito</h2>
-      <p>El enemigo abastece a sus blindados desde un depósito de combustible oculto tras el río. Infíltrense en la base, vuelen el depósito con la bomba del Zapador y reúnanse junto al jeep (bengala verde). <b>Opcional:</b> roben los documentos del escritorio del oficial. Si un comando cae moribundo, cúrenlo con un botiquín antes de 15 s.</p>
+      <div class="hdr">MANUAL DE CAMPO · CONTROLES Y REGLAS</div>
+      <h1>COMMANDOS 3</h1><h2>Hombres de Valor</h2>
+      <p>Si un comando cae moribundo, cúralo con un botiquín antes de 15 s o la misión fracasará. Los rombos dorados del mapa marcan objetivos con los que interactuar (Shift + clic).</p>
       <div class="cols">
       <div><h4>RATÓN</h4><table>
         <tr><td>Clic izquierdo</td><td>Seleccionar · andar · usar el objeto equipado</td></tr>
@@ -188,9 +270,11 @@ const HUD = {
         <tr><td>Q A S D</td><td>Puñetazo · cuchillo · pistola · rifle</td></tr>
         <tr><td>G F C V E</td><td>Granada · botiquín · cigarrillos · vino · alicates</td></tr>
         <tr><td>W · T · U / J</td><td>Examinar · hablar (Espía) · poner/quitar uniforme</td></tr>
+        <tr><td>K · R · L · Z · M</td><td>Ganzúas · robar · lápiz labial · humo · detector de minas</td></tr>
+        <tr><td>Shift + clic</td><td>Subir/bajar de vehículos, desactivar minas, abrir puertas, objetivos</td></tr>
         <tr><td>Tab / Intro</td><td>Fijar el cono del enemigo bajo el cursor (en vacío: todos)</td></tr>
         <tr><td>F8 · F9 · F10 · F11</td><td>Ocultar HUD · mapa táctico · objetos · enemigos</td></tr>
-        <tr><td>Ctrl+S · Ctrl+L · P</td><td>Guardar · cargar · pausa</td></tr>
+        <tr><td>Ctrl+S · Ctrl+L · P · Ctrl+M</td><td>Guardar · cargar · pausa · sonido</td></tr>
       </table></div>
       <div><h4>EL CONO DE VISIÓN</h4>
       <p class="small"><b>Verde claro (cerca):</b> te ven en cualquier postura. <b>Verde oscuro (lejos):</b> cuerpo a tierra eres invisible. Muros, vehículos, árboles y arbustos cortan el cono.</p>
@@ -199,33 +283,30 @@ const HUD = {
       <h4>ENEMIGOS</h4><p class="small"><b>Soldados</b> recogen cigarrillos y vino. <b>Sargentos</b> disparan más rápido y no se distraen si están alerta. <b>Oficiales</b> no caen en cebos y descubren al instante a cualquier comando de uniforme salvo al Espía. La <b>Gestapo</b> (gabardina negra) descubre al Espía si pasa más de 2 s en su zona cercana (barra azul). <b>Francotiradores</b> en torres: cono largo y estrecho, disparan sin aviso.</p>
       <h4>CUERPOS</h4><p class="small">Un cuerpo a la vista provoca la alarma. Escóndelos en arbustos o dentro de edificios (Shift+clic). Un puñetazo deja inconsciente ~28 s: átalo con una cuerda.</p></div>
       </div>
-      <button>${G.time > 0 ? 'Continuar' : 'Comenzar operación'}</button></div>`;
-    ov.querySelector('button').onclick = () => { Sfx.ensure(); G.overlayOpen = false; ov.className = ''; };
+      <button>${fromMenu ? 'Volver' : 'Continuar'}</button></div>`;
+    ov.querySelector('button').onclick = () => { Sfx.ensure(); if (back) back(); else if (fromMenu) this.showMenu(); else this.closeOverlay(); };
   },
 
   showEnd(win, msg) {
     G.overlayOpen = true;
-    const t = Math.floor(G.time), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
-    let stars = 0;
-    const crit = win ? [
-      ['Objetivo principal cumplido', true],
-      ['Documentos secretos recuperados', G.hasDocs()],
-      ['Sin alarmas', G.stats.alarms === 0],
-      ['En menos de 12 minutos', G.time < 720],
-      ['Ningún comando moribundo', G.stats.downs === 0]
-    ] : [];
-    crit.forEach(c => { if (c[1]) stars++; });
+    const M = G.mission, t = Math.floor(G.time), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
+    const R = win ? G.rating() : { n: 0, crit: [] }, stars = R.n;
+    const next = win ? MISSIONS.slice(MISSIONS.indexOf(M) + 1).find(m => m.playable && m.chapter !== 'Extra') : null;
+    const unlocked = win && M.bonus && Progress.bonusUnlocked(M.bonus);
     const ov = document.getElementById('overlay'); ov.className = 'show';
     ov.innerHTML = `<div class="dossier ${win ? 'win' : 'lose'}">
       <div class="stamp">${win ? 'CUMPLIDA' : 'FRACASO'}</div>
-      <div class="hdr">INFORME FINAL DE LA OPERACIÓN</div>
+      <div class="hdr">INFORME FINAL · ${M.chapter.toUpperCase()} ${M.num} · ${M.name.toUpperCase()}</div>
       <h1>${win ? 'MISIÓN CUMPLIDA' : 'MISIÓN FRACASADA'}</h1>
-      <h2>${win ? 'El depósito de combustible ha sido destruido' : (msg || '')}</h2>
-      ${win ? `<div class="stars">${'★'.repeat(stars)}<span>${'★'.repeat(5 - stars)}</span></div><table class="stats">${crit.map(c => `<tr><td>${c[1] ? '☑' : '☐'} ${c[0]}</td></tr>`).join('')}</table>` : ''}
+      <h2>${win ? M.place : (msg || '')}</h2>
+      ${win ? `<div class="stars">${'★'.repeat(stars)}<span>${'★'.repeat(5 - stars)}</span></div><table class="stats">${R.crit.map(c => `<tr><td>${c[1] ? '☑' : '☐'} ${c[0]}</td></tr>`).join('')}</table>` : ''}
+      ${unlocked ? `<p><b>¡Bonus desbloqueado!</b> «${MISSIONS_BY_ID[M.bonus].name}»</p>` : ''}
       <table class="stats"><tr><td>Tiempo</td><td>${mm}:${ss}</td></tr><tr><td>Alarmas</td><td>${G.stats.alarms}</td></tr>
       <tr><td>Enemigos eliminados</td><td>${G.stats.kills}</td></tr><tr><td>Enemigos neutralizados</td><td>${G.stats.ko}</td></tr></table>
-      <button id="againBtn">Reintentar</button>${win ? '' : ' <button id="loadBtn">Cargar partida (Ctrl+L)</button>'}</div>`;
-    document.getElementById('againBtn').onclick = () => { G.reset(); G.overlayOpen = false; ov.className = ''; };
-    const lb = document.getElementById('loadBtn'); if (lb) lb.onclick = () => { G.over = null; G.overlayOpen = false; ov.className = ''; G.load(); };
+      ${next ? '<button id="nextBtn">Siguiente misión</button> ' : ''}<button id="againBtn" class="${next ? 'ghost' : ''}">Reintentar</button>${win ? '' : ' <button id="loadBtn">Cargar partida (Ctrl+L)</button>'} <button id="campBtn" class="ghost">Campaña</button></div>`;
+    document.getElementById('againBtn').onclick = () => { G.reset(M.id); this.closeOverlay(); };
+    document.getElementById('campBtn').onclick = () => this.showCampaign(M.id);
+    const nb = document.getElementById('nextBtn'); if (nb) nb.onclick = () => this.showBriefing(next.id);
+    const lb = document.getElementById('loadBtn'); if (lb) lb.onclick = () => { G.over = null; this.closeOverlay(); G.load(); };
   }
 };

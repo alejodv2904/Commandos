@@ -129,3 +129,26 @@ body.nohud #game,body.nohud #ui{height:100%}
 .loading .lbar{width:360px;height:10px;margin:18px auto 10px;border:1px solid #8a7442;background:rgba(0,0,0,.5)}
 .loading #lfill{height:100%;width:0;background:linear-gradient(90deg,#8a7442,#e8c870);transition:width .2s}
 .loading .ls{color:#c8b88a;font-size:14px}
+
+/* Menú principal y campaña */
+#overlay.menu{background:radial-gradient(ellipse at 30% 20%,rgba(60,48,26,.92),rgba(6,5,3,.97))}
+.mainmenu{text-align:center}
+.mm-title{font-family:"Black Ops One",Impact,sans-serif;font-size:76px;letter-spacing:.08em;color:#e8d8a0;text-shadow:0 4px 18px rgba(0,0,0,.9)}
+.mm-sub{font-size:20px;color:#c8b07a;letter-spacing:.3em;margin-bottom:36px}
+.mm-btns{display:flex;flex-direction:column;gap:12px;align-items:center}
+.mm-btns button,.dossier button.ghost{font-family:"Black Ops One",Impact,sans-serif;letter-spacing:.08em}
+.mm-btns button{width:320px;padding:12px;font-size:18px;color:#f2e6c0;background:linear-gradient(#5b6a34,#3b4620);border:2px solid #2a3014;border-radius:3px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.5)}
+.mm-btns button:hover{background:linear-gradient(#6d7e40,#4a5828)}
+.mm-foot{margin-top:40px;color:#8a7a5a;font-size:12px}
+.dossier button.ghost{background:transparent;color:#3b2e14;border:2px solid #6e5d3c}
+.campaign{display:flex;gap:22px;width:min(1180px,96vw);height:min(760px,92vh)}
+.c-list{width:330px;overflow:auto;padding:12px 14px;background:rgba(20,16,8,.7);border:1px solid #6e5d3c;border-radius:4px}
+.c-list h4{font-family:"Black Ops One",Impact,sans-serif;color:#c8b07a;font-weight:normal;letter-spacing:.2em;font-size:12px;margin:10px 0 6px}
+.mcard{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-radius:3px;cursor:pointer;border:1px solid transparent;color:#cfc2a0;font-size:13.5px}
+.mcard:hover{border-color:#8a7442;background:rgba(255,230,160,.06)}
+.mcard.sel{border-color:#e8c870;background:rgba(255,230,160,.12)}
+.mcard .mn{width:30px;font-family:"Black Ops One",Impact,sans-serif;color:#e8c870}
+.mcard .mt{flex:1}
+.mcard .ms{color:#e8c870;font-size:12px}
+.mcard.desarrollo,.mcard.bloqueada{opacity:.55}
+.c-detail{flex:1;max-height:none;transform:none;overflow:auto}

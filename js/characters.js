@@ -202,11 +202,29 @@ const Chars = {
         add(new THREE.CylinderGeometry(0.2, 0.2, 0.016, 24), hc, 0, -0.025, 0);
         add(new THREE.SphereGeometry(0.12, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hc, 0, -0.025, 0);
         break;
+      case 'mhelmet': // casco moderno redondeado con funda
+        add(new THREE.SphereGeometry(0.13, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.56), hc, 0, -0.01, -0.005, 1, 0.9, 1.08);
+        add(new THREE.BoxGeometry(0.06, 0.04, 0.03), this.mat(kind, 'dark'), 0, 0.06, 0.12);
+        break;
+      case 'boonie': // sombrero de ala blanda
+        add(new THREE.CylinderGeometry(0.19, 0.2, 0.012, 20), hc, 0, -0.02, 0);
+        add(new THREE.CylinderGeometry(0.1, 0.11, 0.09, 16), hc, 0, 0.02, 0);
+        break;
+      case 'beanie': // gorro de lana
+        add(new THREE.SphereGeometry(0.112, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), hc, 0, -0.02, -0.005, 1, 1.05, 1.04);
+        add(new THREE.CylinderGeometry(0.113, 0.113, 0.035, 16), hc, 0, -0.03, 0);
+        break;
+      case 'hair': // melena recogida
+        add(new THREE.SphereGeometry(0.1, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), hc, 0, -0.04, -0.01, 1.02, 1.0, 1.08);
+        add(new THREE.SphereGeometry(0.055, 12, 8), hc, 0, -0.03, -0.11);
+        add(new THREE.CapsuleGeometry(0.045, 0.12, 4, 8), hc, 0, -0.12, -0.075);
+        break;
       case 'hood': // capucha de francotirador con red
         add(new THREE.SphereGeometry(0.15, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), hc, 0, -0.04, -0.015, 1, 1.05, 1.1);
         add(new THREE.SphereGeometry(0.155, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.6), this.mat(kind, '#2c3a22'), 0, -0.04, -0.015, 1, 1.05, 1.1).material.wireframe = true;
         break;
     }
+    if (K.goggles) { const gg = add(new THREE.TorusGeometry(0.03, 0.01, 6, 12), this.mat(kind, '#9aa8b0'), -0.035, 0.015, 0.125); const g2 = gg.clone(); g2.position.x = 0.035; g.add(g2); add(new THREE.BoxGeometry(0.2, 0.012, 0.01), this.mat(kind, '#3a2a1a'), 0, 0.015, 0.12); }
     return g;
   },
 
