@@ -5,7 +5,15 @@ Juego de estrategia táctica en tiempo real inspirado en *Commandos 2*, en 3D is
 ## Cómo jugar
 Abre `index.html` en el navegador (doble clic). Funciona sin servidor: Three.js y las texturas van incluidos en el repositorio.
 
-**Misión:** infiltra a los 4 comandos, vuela el depósito de combustible con la bomba del Zapador y reúne a todos en la extracción. Opcional: roba los documentos del oficial.
+**Campaña:** el menú principal da acceso al selector de las 21 misiones de la biblia de diseño (2 entrenamientos, 10 de campaña y 9 bonus). Por ahora son jugables:
+
+| Misión | Escuadrón | Resumen |
+|---|---|---|
+| **E2 · Fuego Cruzado** (desierto, día) | Espía, Explosivos, Francotirador, Conductor | Cada especialista tiene su tarea: el Espía de uniforme cruza el control y neutraliza al oficial; Explosivos corta la alambrada, limpia el campo de minas con el detector y vuela el muro del cañón; el Francotirador sube a la torre de agua y elimina a los vigías de las azoteas; el Conductor recoge al escuadrón en el camión y sale por el cañón. |
+| **1 · Frecuencia Muerta** (Atacama, noche) | Ladrón y Seductora | Tres terrazas con focos giratorios y farolas. Corta la electricidad en la subestación, abre la cúpula con ganzúas, descarga los datos, sabotea el motor de la antena y escapa en el todoterreno. Hay 20 chips escondidos y dos objetivos secundarios. |
+| **X · Operación Depósito** | Boina Verde, Francotirador, Espía, Zapador | La misión original de prueba. |
+
+Las demás misiones y los bonus (se desbloquean reuniendo los 20 chips de su misión) aparecen en el selector pero aún están en desarrollo. El progreso, las estrellas y los chips se guardan en el navegador.
 
 ## Controles (configuración clásica de Commandos 2)
 | Entrada | Acción |
@@ -24,6 +32,13 @@ Abre `index.html` en el navegador (doble clic). Funciona sin servidor: Three.js 
 | Tab / Intro | Fijar el cono del enemigo bajo el cursor (en vacío: todos) |
 | F1 · F8 · F9 · F10 · F11 · F12 | Ayuda · ocultar HUD · mapa táctico · objetos · enemigos · captura |
 | Ctrl+S · Ctrl+L · P | Guardado rápido · carga rápida · pausa |
+
+## Nuevos comandos y objetos (fase 1)
+- **Conductor:** conduce el camión (Shift + clic para subir y bajar; clic para dirigirlo), pistola silenciada y granadas de humo (15 s de nube que corta la visión).
+- **Ladrón:** el más bajo y rápido; trepa los muros de las terrazas (solo él), abre puertas cerradas con ganzúas (K), roba bolsillos por la espalda (R) y se mueve casi sin ruido.
+- **Seductora:** va de civil, así que solo los oficiales sospechan si se queda cerca; con el lápiz labial (L) atrae a soldados y técnicos, que se acercan embobados mientras ella no se mueva.
+- **Explosivos:** detector de minas (M) que revela las minas cercanas; Shift + clic sobre una revelada para desactivarla. Pisar una mina sin detectar es mortal, también para los vehículos.
+- Noche con farolas y focos giratorios: fuera de la luz los guardias ven mucho menos. Cortar la electricidad apaga todo.
 
 ## Comandos y mochila
 Cada comando tiene una mochila en cuadrícula (estilo Tetris); los objetos ocupan casillas según su tamaño
@@ -64,7 +79,7 @@ Todo va incrustado en `assets/` para que el juego funcione abriendo `index.html`
 
 ## Estructura
 - `js/util.js` utilidades · `js/textures.js` ruido y color · `js/level.js` mapa, LOS, A*
-- `js/entities.js` comandos e IA enemiga · `js/models.js` materiales, edificios, objetos y vegetación · `js/characters.js` soldados animados
+- `js/missions.js` campaña (21 misiones) y objetivos · `js/vehicles.js` vehículos · `js/entities.js` comandos e IA enemiga · `js/models.js` materiales, edificios, objetos y vegetación · `js/characters.js` soldados animados
 - `js/render3d.js` escena, postprocesado, suelo, hierba, agua, partículas · `js/assets.js` carga de recursos
 - `js/items.js` inventario y objetos · `js/input.js` controles · `js/hud.js` interfaz, mochila, mapa táctico
 - `js/hudart.js` iconos y retratos · `js/audio.js` sonido · `js/main.js` reglas, bucle, guardado

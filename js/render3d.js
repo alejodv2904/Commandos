@@ -130,7 +130,7 @@ const Render = {
   // Luz ambiental de un cielo atmosférico real (Sky de Three.js) prefiltrada con PMREM
   buildEnvironment(night) {
     if (night) {
-      const env = new THREE.Scene(); env.background = new THREE.Color(0x0b1020);
+      const env = new THREE.Scene(); env.background = new THREE.Color(0x1c2a4a);
       const pm = new THREE.PMREMGenerator(this.renderer); this.scene.environment = pm.fromScene(env, 0.02).texture; pm.dispose(); return;
     }
     const sky = new THREE.Sky(); sky.scale.setScalar(50);
@@ -374,6 +374,12 @@ const Render = {
     for (const l of Level.lights) {
       const pl = new THREE.PointLight(l.color, night ? 2.4 : 0, l.r * 2.2, 1.6); pl.position.set(l.x, l.h, l.y);
       this.level.add(pl); this.lampObjs.push(pl);
+    }
+    // luz interior de las salas importantes (servidores azulados, oficinas cálidas)
+    for (const b of Level.buildings) {
+      if (!night || (b.furn !== 'servers' && b.furn !== 'office')) continue;
+      const pl = new THREE.PointLight(b.furn === 'servers' ? 0x7aa8ff : 0xffe0a0, 2.2, 14, 1.4);
+      pl.position.set(b.x + b.w / 2, 1.6, b.y + b.h / 2); this.level.add(pl); this.lampObjs.push(pl);
     }
     const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff2c8, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
     const poolTex = Tex.canvas(128, 128, c => { const g = c.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,245,210,.85)'); g.addColorStop(0.7, 'rgba(255,240,200,.35)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(0, 0, 128, 128); });

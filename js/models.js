@@ -360,7 +360,7 @@ const Buildings = {
     const w = x1 - x0, d = z1 - z0;
     if (b.furn === 'servers') { // racks de servidores con luces
       for (let x = x0 + 0.4; x + 0.6 < x1; x += 1.3) for (const zz of [z0 + 0.4, z0 + 2.4]) {
-        B.box('rubber', x, 0, zz, x + 0.6, 1.5, zz + 0.8);
+        B.box('tank', x, 0, zz, x + 0.6, 1.5, zz + 0.8);
         for (let k = 0; k < 5; k++) B.box(k % 2 ? 'lamp' : 'shutter', x + 0.08, 0.25 + k * 0.25, zz + 0.81, x + 0.14, 0.29 + k * 0.25, zz + 0.83);
       }
       B.box('door', x0 + 0.5, 0, z1 - 1.4, x0 + 2.5, 0.8, z1 - 0.8);
@@ -479,7 +479,7 @@ const Props = {
         this.cyl(B, 'tank', cx, 1.6, cz, 0.45, 2.0, 'y', 16);
         B.box('oliveDark', cx - 0.5, 2.4, cz - 0.5, cx + 0.5, 3.0, cz + 0.5);
         const dg = new THREE.SphereGeometry(3.2, 32, 12, 0, Math.PI * 2, 0, 0.75).toNonIndexed();
-        dg.scale(1, 0.5, 1); dg.rotateX(Math.PI); dg.rotateX(-0.75); dg.translate(cx, 4.6, cz + 0.4);
+        dg.scale(1, 0.9, 1); dg.rotateX(Math.PI); dg.rotateX(-0.5); dg.translate(cx, 5.0, cz + 0.2);
         const mg = Mats.get('white'); B.add('white', Geo.worldUV(dg, 3)); mg.side = THREE.DoubleSide;
         this.cyl(B, 'gutter', cx, 4.8, cz - 0.2, 0.05, 2.6, 'y', 6);
         B.box('rubber', cx - 0.4, 0.6, z1 - 1.3, cx + 0.4, 1.2, z1 - 0.9); // motor de rotación
@@ -789,9 +789,9 @@ const SOLDIER_KIT = {
   dsoldier:  { tunic: '#b49a6c', arms: '#b49a6c', pants: '#a68c60', boots: '#5a4630', bootTop: 0.17, belt: '#4a3c28', camo: ['#9c8258', '#c8b088', '#7e6a48'], skin: '#c89a74', hat: 'mhelmet', hatCol: '#a08860', weapon: 'smg', height: 1.78, build: {} },
   dsergeant: { tunic: '#a8905f', arms: '#a8905f', pants: '#9a8456', boots: '#5a4630', bootTop: 0.17, belt: '#4a3c28', camo: ['#94784e', '#c0a87c', '#76623e'], skin: '#c89a74', hat: 'boonie', hatCol: '#9a8456', weapon: 'smg', height: 1.78, width: 1.03, build: { chest: 1.06, belly: 1.06 } },
   dofficer:  { tunic: '#7a6a4a', arms: '#7a6a4a', pants: '#6a5c40', boots: '#2a1d12', bootTop: 0.28, belt: '#2a1d12', collar: '#5a4a30', skin: '#c89a74', hat: 'beret', hatCol: '#7a1a1a', weapon: 'pistol', height: 1.81, width: 0.97, build: {} },
-  nsoldier:  { tunic: '#2c3036', arms: '#2c3036', pants: '#262a30', boots: '#0e0f11', bootTop: 0.17, belt: '#141518', camo: ['#22262c', '#3a4048', '#2c3036'], skin: '#c89a74', hat: 'beanie', hatCol: '#1a1c20', weapon: 'smg', height: 1.78, build: {} },
-  nsergeant: { tunic: '#30353c', arms: '#30353c', pants: '#2a2e34', boots: '#0e0f11', bootTop: 0.17, belt: '#141518', skin: '#c89a74', hat: 'mhelmet', hatCol: '#2a2e34', weapon: 'smg', height: 1.78, width: 1.03, build: { chest: 1.06, belly: 1.06 } },
-  nofficer:  { tunic: '#3a4048', arms: '#3a4048', pants: '#30353c', boots: '#0b0b0d', bootTop: 0.28, belt: '#141518', collar: '#e0dcd0', skin: '#d6a882', hat: 'cap', hatCol: '#2a2e34', weapon: 'pistol', height: 1.81, width: 0.97, build: {} },
+  nsoldier:  { tunic: '#4a525e', arms: '#4a525e', pants: '#3e4650', boots: '#0e0f11', bootTop: 0.17, belt: '#141518', camo: ['#363c46', '#566070', '#464e5a'], skin: '#c89a74', hat: 'beanie', hatCol: '#1a1c20', weapon: 'smg', height: 1.78, build: {} },
+  nsergeant: { tunic: '#525a66', arms: '#525a66', pants: '#444c56', boots: '#0e0f11', bootTop: 0.17, belt: '#141518', skin: '#c89a74', hat: 'mhelmet', hatCol: '#2a2e34', weapon: 'smg', height: 1.78, width: 1.03, build: { chest: 1.06, belly: 1.06 } },
+  nofficer:  { tunic: '#5a626e', arms: '#5a626e', pants: '#4a525c', boots: '#0b0b0d', bootTop: 0.28, belt: '#141518', collar: '#e0dcd0', skin: '#d6a882', hat: 'cap', hatCol: '#2a2e34', weapon: 'pistol', height: 1.81, width: 0.97, build: {} },
   tech:      { tunic: '#2c4a78', arms: '#2c4a78', pants: '#2a4470', boots: '#2a2420', bootTop: 0.1, belt: '#c8c4b8', beltW: 0.008, collar: '#2c4a78', skin: '#d8ac86', hat: 'flatcap', hatCol: '#d8d4c8', weapon: null, height: 1.75, width: 1.02, build: { belly: 1.1 } },
 };
 
