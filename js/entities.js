@@ -194,7 +194,7 @@ class Commando {
     if (!A || (A.ok && !A.ok(t, this))) { this.task = null; this.path = []; return; }
     const tx = t.target ? t.target.x : t.x, ty = t.target ? t.target.y : t.y;
     const high = this.elev > 0 || (t.target && t.target.elev > 0);
-    const range = A.range * (this.elev > 0 && A.los ? 1.45 : 1) + (t.target && t.target.elev > 0 && A.range < 2 ? -9 : 0);
+    const range = A.range * (this.elev > 0 && A.los ? 1.6 : 1) + (t.target && t.target.elev > 0 && A.range < 2 ? -9 : 0);
     if (this.onTower && (dist(this.x, this.y, tx, ty) > range || (A.los && !Level.los(this.x, this.y, tx, ty, high)))) { G.toast('Fuera de alcance desde la torre', true); this.task = null; return; }
     if (dist(this.x, this.y, tx, ty) <= range && (!A.los || Level.los(this.x, this.y, tx, ty, high))) {
       this.task = null; this.path = [];

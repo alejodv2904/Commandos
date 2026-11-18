@@ -118,7 +118,7 @@ function buildFuegoCruzado(A) {
   A.building(31, 26, 6, 5, { name: 'Casa de adobe', facade: 'plaster', roof: 'flat', H: 2.0, R: 0.1, furn: 'house' });
   // torre de agua
   A.prop('watertower', 23, 30, 2, 2, 'Q');
-  Level.towers.push({ x: 24, y: 31, top: { x: 24, y: 31 }, elev: 4.2 });
+  Level.towers.push({ x: 24, y: 31, top: { x: 25.0, y: 32.1 }, elev: 3.7 });
   A.interact('tower', 'Subir a la torre de agua', 24, 33, { time: 1.5, repeat: true, who: null, climb: true });
   // patio con camión y tanque
   A.rectF(25, 2, 39, 7, 'y');
