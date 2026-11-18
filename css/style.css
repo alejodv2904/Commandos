@@ -1,6 +1,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;background:#11160c;font-family:"Special Elite","Courier New",monospace;color:#eadfbe;user-select:none}
-#game,#ui{position:absolute;left:0;top:0;width:100%;height:calc(100% - 150px);display:block}
+#game,#ui{position:absolute;left:0;top:0;width:100%;height:calc(100% - var(--hud-h,150px));display:block}
 #game{cursor:none}
 #ui{pointer-events:none}
 
@@ -25,7 +25,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#11160c;font-family:
 #toast.bad{border-color:#c0392b;color:#ffc2b0}
 
 /* HUD inferior */
-#hud{position:absolute;left:0;right:0;bottom:0;height:150px;display:flex;gap:10px;padding:8px 10px;align-items:stretch;cursor:default;
+#hud{position:absolute;left:0;bottom:0;width:calc(100% / var(--hs,1));transform:scale(var(--hs,1));transform-origin:left bottom;height:150px;display:flex;gap:10px;padding:8px 10px;align-items:stretch;cursor:default;
   background:linear-gradient(#2a2416,#17130b);border-top:3px solid #5d4b28;box-shadow:0 -4px 14px rgba(0,0,0,.6)}
 .leather{position:relative;border-radius:6px;
   background:radial-gradient(ellipse at 30% 20%,rgba(255,220,160,.08),transparent 60%),
@@ -152,3 +152,21 @@ body.nohud #game,body.nohud #ui{height:100%}
 .mcard .ms{color:#e8c870;font-size:12px}
 .mcard.desarrollo,.mcard.bloqueada{opacity:.55}
 .c-detail{flex:1;max-height:none;transform:none;overflow:auto}
+
+/* ---------- Celular / pantalla táctil ---------- */
+#tbar,#rotate-hint{display:none}
+body.touch{-webkit-touch-callout:none;-webkit-user-select:none;overscroll-behavior:none}
+body.touch #game{cursor:default}
+body.touch #objectives{transform:scale(.62) rotate(-.6deg);transform-origin:left top;left:8px;top:8px}
+body.touch #minimap-wrap{transform:scale(.6);transform-origin:right top;right:6px;top:6px}
+body.touch #toast{top:8px;font-size:13px;max-width:70vw;white-space:normal;text-align:center}
+body.touch #tbar{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;position:absolute;right:max(6px,env(safe-area-inset-right,0px));bottom:calc(var(--hud-h,150px) + 6px);max-width:62%;z-index:5}
+body.touch #tbar button{min-width:46px;height:36px;padding:0 9px;font:inherit;font-size:12px;color:#f2dc9a;background:rgba(36,30,18,.82);border:1px solid #8a7442;border-radius:6px;touch-action:manipulation}
+body.touch #tbar button.on{background:#7a4a14;border-color:#ff9a3d;color:#fff}
+body.touch #tbar button:active{background:#5d4b28}
+body.touch #hud{padding-left:max(10px,env(safe-area-inset-left,0px))}
+body.touch .dossier{padding:16px 20px;max-height:96vh}
+body.touch .dossier h1{font-size:28px}
+body.touch #overlay{overflow:auto}
+body.touch .slot,body.touch .sq,body.touch #abil button{touch-action:manipulation}
+@media (orientation:portrait){body.touch #rotate-hint{display:flex;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;text-align:center;padding:30px;font-size:20px;background:rgba(10,8,4,.94);color:#f2dc9a}}

@@ -17,6 +17,9 @@ Abre `index.html` en el navegador (doble clic). Funciona sin servidor: Three.js 
 
 Las demás misiones y los bonus (se desbloquean reuniendo los 20 chips de su misión) aparecen en el selector pero aún están en desarrollo. El progreso, las estrellas y los chips se guardan en el navegador.
 
+## Celular
+Se juega en horizontal. Un toque mueve o selecciona (doble toque: correr), arrastrar con un dedo mueve la cámara, el pellizco hace zoom y la pulsación larga interactúa (como Shift + clic). Los botones de la derecha cubren Tumbarse, Cubrirse, Cancelar, Todos, Conos, girar la cámara, Mapa, Pausa y Pantalla completa. Para pasar un objeto, mantenlo pulsado en la mochila y suéltalo sobre el retrato de otro comando.
+
 ## Controles (configuración clásica de Commandos 2)
 | Entrada | Acción |
 |---|---|

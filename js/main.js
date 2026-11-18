@@ -26,6 +26,7 @@ const G = {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     Input.bind(this);
+    Touch.init();
     Progress.load();
     this.reset('classic');
     HUD.showMenu();
@@ -38,7 +39,11 @@ const G = {
     requestAnimationFrame(loop);
   },
 
-  resize() { Render.resize(window.innerWidth, Math.max(200, window.innerHeight - (this.hudHidden ? 0 : HUD_H))); },
+  resize() {
+    const s = document.body.classList.contains('touch') ? clamp(window.innerWidth / 1150, 0.55, 1) : 1, h = Math.round(HUD_H * s);
+    document.documentElement.style.setProperty('--hs', s); document.documentElement.style.setProperty('--hud-h', h + 'px');
+    Render.resize(window.innerWidth, Math.max(200, window.innerHeight - (this.hudHidden ? 0 : h)));
+  },
 
   // Prepara una misión de la campaña
   reset(id) {
