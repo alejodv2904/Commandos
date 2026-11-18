@@ -5,11 +5,12 @@ Juego de estrategia táctica en tiempo real inspirado en *Commandos 2*, en 3D is
 ## Cómo jugar
 Abre `index.html` en el navegador (doble clic). Funciona sin servidor: Three.js y las texturas van incluidos en el repositorio.
 
-**Campaña:** el menú principal da acceso al selector de las 21 misiones de la biblia de diseño (2 entrenamientos, 10 de campaña y 9 bonus). Por ahora son jugables:
+**Campaña:** el menú principal da acceso al selector de las 21 misiones de la biblia de diseño (2 entrenamientos, 10 de campaña y 9 bonus). Por ahora son jugables (4 de las 21):
 
 | Misión | Escuadrón | Resumen |
 |---|---|---|
 | **E2 · Fuego Cruzado** (desierto, día) | Espía, Explosivos, Francotirador, Conductor | Cada especialista tiene su tarea: el Espía de uniforme cruza el control y neutraliza al oficial; Explosivos corta la alambrada, limpia el campo de minas con el detector y vuela el muro del cañón; el Francotirador sube a la torre de agua y elimina a los vigías de las azoteas; el Conductor recoge al escuadrón en el camión y sale por el cañón. |
+| **E1 · Protocolo Sombra** (instalación subterránea) | Ladrón, Asalto y Perro táctico | Cruza un pasillo vigilado por las zonas de sombra y tumbado; el Ladrón escala un muro y fuerza desde dentro la puerta que encierra a Asalto; el Perro lleva la llave maestra por una rejilla estrecha; Asalto atrae a un guardia con el señuelo, lo noquea, lo ata y lo esconde en un armario; y todos se reúnen en la salida. |
 | **1 · Frecuencia Muerta** (Atacama, noche) | Ladrón y Seductora | Tres terrazas con focos giratorios y farolas. Corta la electricidad en la subestación, abre la cúpula con ganzúas, descarga los datos, sabotea el motor de la antena y escapa en el todoterreno. Hay 20 chips escondidos y dos objetivos secundarios. |
 | **X · Operación Depósito** | Boina Verde, Francotirador, Espía, Zapador | La misión original de prueba. |
 
@@ -32,6 +33,11 @@ Las demás misiones y los bonus (se desbloquean reuniendo los 20 chips de su mis
 | Tab / Intro | Fijar el cono del enemigo bajo el cursor (en vacío: todos) |
 | F1 · F8 · F9 · F10 · F11 · F12 | Ayuda · ocultar HUD · mapa táctico · objetos · enemigos · captura |
 | Ctrl+S · Ctrl+L · P | Guardado rápido · carga rápida · pausa |
+
+## Fase 2: Perro táctico y mecánicas de interior
+- **Perro táctico:** bull terrier blanco con mancha en el ojo, modelo propio con patas articuladas. Los enemigos lo ignoran, pasa por las rejillas estrechas, ladra (B) para atraer guardias a unos 12 m y lleva objetos en su collar (4 celdas). Para pasar un objeto, arrastra su icono de la mochila al retrato del compañero cuando estén juntos.
+- **Muros escalables** (solo el Ladrón), **rejillas** (solo el perro), **armarios metálicos** donde esconder cuerpos (Shift + clic con el cuerpo cargado) y **puertas blindadas**: unas se fuerzan con ganzúas (algunas solo desde el lado indicado) y otras con la llave maestra.
+- **Recintos interiores** con paredes de hormigón, balizas de luz y zonas de sombra donde los guardias ven mucho menos; los muros que tapan a un comando dibujan su silueta.
 
 ## Nuevos comandos y objetos (fase 1)
 - **Conductor:** conduce el camión (Shift + clic para subir y bajar; clic para dirigirlo), pistola silenciada y granadas de humo (15 s de nube que corta la visión).

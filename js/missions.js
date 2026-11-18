@@ -276,7 +276,7 @@ const MISSIONS = [
     ],
     enemies: PROTOCOLO_ENEMIES, build: buildProtocolo,
     objectives: [
-      Obj.zone('thief', 31, 27, 38, 33, 'Ladrón: cruza el pasillo vigilado usando las zonas de sombra y el cono lejano cuerpo a tierra'),
+      Obj.zone('thief', 31, 27, 38, 33.99, 'Ladrón: cruza el pasillo vigilado usando las zonas de sombra y el cono lejano cuerpo a tierra'),
       Obj.custom(() => Level.at(20, 26) === 'D', 'Ladrón: escala la pared norte del pasillo y abre con ganzúas la puerta blindada desde dentro'),
       Obj.custom(G => { const a = G.units.find(u => u.type === 'beret'); return !!(a && a.alive && Inv.find(a.inv, 'masterkey')); }, 'Perro: pasa por la rejilla estrecha llevando la llave maestra del Ladrón hasta Asalto'),
       Obj.custom(G => G.enemies.some(e => e.state === 'tied' && e.hidden), 'Asalto: atrae a un guardia con el señuelo, noquéalo, átalo y escóndelo en un armario metálico'),
