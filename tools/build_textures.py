@@ -28,6 +28,7 @@ TEXTURES = {
     'paint':    ('Metal032', 256, False),
     'bark':     ('Bark012', 512, True),
     'leaves':   ('ScatteredLeaves008', 512, False),
+    'snow':     ('Snow015', 1024, True),
 }
 
 def fetch(asset):
